@@ -1,38 +1,61 @@
 <template>
-  <a-layout class="layout">
-    <a-layout-content class="content">
-      <router-view />
-    </a-layout-content>
-    <div class="footer-tabs">
-      <router-link to="/dashboard" class="tab-item">
-        <dashboard-outlined />
-        <span>仪表盘</span>
-      </router-link>
-      <router-link to="/inventory" class="tab-item">
-        <database-outlined />
-        <span>总览</span>
-      </router-link>
-      <router-link to="/scan" class="tab-item">
-        <scan-outlined />
-        <span>操作</span>
-      </router-link>
-      <router-link to="/me" class="tab-item">
-        <user-outlined />
-        <span>我的</span>
-      </router-link>
-    </div>
-  </a-layout>
+  <a-spin :spinning="uiStore.isLoading" tip="加载中..." size="large" wrapperClassName="full-screen-spin">
+    <a-layout class="layout">
+      <a-layout-content class="content">
+        <router-view />
+      </a-layout-content>
+      <div class="footer-tabs">
+        <router-link to="/dashboard" class="tab-item">
+          <dashboard-outlined />
+          <span>仪表盘</span>
+        </router-link>
+        <router-link to="/inventory" class="tab-item">
+          <database-outlined />
+          <span>总览</span>
+        </router-link>
+        <router-link to="/scan" class="tab-item">
+          <scan-outlined />
+          <span>操作</span>
+        </router-link>
+        <router-link to="/me" class="tab-item">
+          <user-outlined />
+          <span>我的</span>
+        </router-link>
+      </div>
+    </a-layout>
+  </a-spin>
 </template>
 
 <script setup lang="ts">
+import { useUiStore } from '../stores/uiStore'; // 导入 UI store
 import {
   DashboardOutlined,
   DatabaseOutlined,
   ScanOutlined,
   UserOutlined,
 } from '@ant-design/icons-vue';
-// The selected state will now be handled automatically by Vue Router's active classes
+
+const uiStore = useUiStore(); // 获取 UI store 实例
 </script>
+
+<style>
+/* 使用 :deep() 或 >>> 来穿透 scoped 样式 */
+.full-screen-spin .ant-spin-container {
+  height: 100vh;
+}
+.full-screen-spin .ant-spin-spinning {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 255, 255, 0.7);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+</style>
 
 <style scoped>
 .layout {
