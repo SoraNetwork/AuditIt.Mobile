@@ -1,0 +1,42 @@
+# GitHub Actions for audit-it.mobile
+
+name: Build and Deploy Mobile Frontend
+
+on:
+  push:
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18' # Specify Node.js version
+
+      - name: Create .env.local file
+        run: |
+          echo "VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}" >> .env.local
+          echo "VITE_DINGTALK_APP_KEY=${{ secrets.VITE_DINGTALK_APP_KEY }}" >> .env.local
+          echo "VITE_DINGTALK_CORP_ID=${{ secrets.VITE_DINGTALK_CORP_ID }}" >> .env.local
+        shell: bash
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build
+
+      - name: Deploy to dist branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: dist
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
+          commit_message: 'Deploy to dist from ${{ github.sha }}'
