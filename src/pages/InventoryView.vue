@@ -58,8 +58,8 @@
                   <span class="card-title">{{ item.name }}</span>
                 </template>
                 <template #extra>
-                  <a-tag :color="statusMap[item.status]?.color">
-                    {{ statusMap[item.status]?.text }}
+                  <a-tag :color="statusDisplay(item.status).color">
+                    {{ statusDisplay(item.status).text }}
                   </a-tag>
                 </template>
                 <p><strong>可视化ID:</strong> {{ item.shortId }}</p>
@@ -102,14 +102,16 @@ const filters = reactive<{ warehouseId?: number; status?: ItemStatus }>({
   status: undefined,
 });
 
-const statusMap = STATUS_MAP;
+const statusDisplay = (status: ItemStatus) => {
+  return STATUS_MAP[status] || { text: '未知', color: 'gray' };
+};
 
 // --- Data Fetching ---
 const fetchData = async () => {
   isLoading.value = true;
   try {
     // Fetch items and warehouses for filtering in parallel
-    const [itemsResponse] = await Promise.all([
+    await Promise.all([
       itemStore.fetchItems({ ...filters }),
       warehouseStore.fetchWarehouses(),
     ]);

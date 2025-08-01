@@ -104,7 +104,7 @@ const startScan = () => {
 
   html5Qrcode.start({ facingMode: "environment" }, config, onScanSuccess, undefined)
     .then(() => { isScanning.value = true; })
-    .catch(err => { scanError.value = "无法启动摄像头。请检查权限。"; });
+    .catch(_err => { scanError.value = "无法启动摄像头。请检查权限。"; });
 };
 
 const stopScan = () => {

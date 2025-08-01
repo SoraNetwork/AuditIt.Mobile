@@ -125,8 +125,8 @@ const handleAction = async (action: 'outbound' | 'return' | 'check' | 'dispose')
   }
 };
 
-const viewItemDetails = (id: number) => {
-  router.push(`/items/${id}`);
+const viewItemDetails = (id: string) => {
+  router.push({ name: 'item-details', params: { id } });
 };
 </script>
 

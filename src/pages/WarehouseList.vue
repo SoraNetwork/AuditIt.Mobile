@@ -51,11 +51,11 @@ const goToNew = () => {
   router.push({ name: 'warehouse-new' });
 };
 
-const goToEdit = (id: string) => {
-  router.push({ name: 'warehouse-edit', params: { id } });
+const goToEdit = (id: number) => {
+  router.push({ name: 'warehouse-edit', params: { id: id.toString() } });
 };
 
-const handleDelete = async (id: string) => {
+const handleDelete = async (id: number) => {
   try {
     await warehouseStore.deleteWarehouse(id);
     message.success('仓库删除成功');

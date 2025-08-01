@@ -57,7 +57,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuditLogStore, type AuditAction } from '../stores/auditLogStore';
+import { useAuditLogStore } from '../stores/auditLogStore';
 import { FilterOutlined } from '@ant-design/icons-vue';
 import dayjs from 'dayjs';
 
@@ -67,7 +67,7 @@ const auditLogStore = useAuditLogStore();
 const showFilterDrawer = ref(false);
 const filters = reactive<{
   dateRange: [dayjs.Dayjs, dayjs.Dayjs] | null;
-  action?: AuditAction;
+  action?: string;
   user?: string;
 }>({
   dateRange: null,

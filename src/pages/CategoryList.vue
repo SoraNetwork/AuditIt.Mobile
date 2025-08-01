@@ -49,11 +49,11 @@ const goToNew = () => {
   router.push({ name: 'category-new' });
 };
 
-const goToEdit = (id: string) => {
-  router.push({ name: 'category-edit', params: { id } });
+const goToEdit = (id: number) => {
+  router.push({ name: 'category-edit', params: { id: id.toString() } });
 };
 
-const handleDelete = async (id: string) => {
+const handleDelete = async (id: number) => {
   try {
     await categoryStore.deleteCategory(id);
     message.success('分类删除成功');

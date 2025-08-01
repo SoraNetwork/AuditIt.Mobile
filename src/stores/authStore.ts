@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import * as dd from 'dingtalk-jsapi';
 import apiClient from '../services/api';
+import router from '../router';
 
 interface AuthState {
   token: string | null;
@@ -36,9 +37,11 @@ export const useAuthStore = defineStore('auth', {
           if (!corpId) return reject(new Error('钉钉 CorpId 未配置!'));
 
           dd.runtime.permission.requestAuthCode({
-            corpId: corpId,
-            onSuccess: (result) => this.handleAuthSuccess(result.code).then(resolve).catch(reject),
-            onFail: (err) => reject(new Error(`钉钉H5授权失败: ${JSON.stringify(err)}`)),
+            corpId: corpId
+          }).then((result: { code: string }) => {
+            this.handleAuthSuccess(result.code).then(resolve).catch(reject);
+          }).catch((err: any) => {
+            reject(new Error(`钉钉H5授权失败: ${JSON.stringify(err)}`));
           });
         });
         dd.error((err: any) => {
@@ -80,7 +83,7 @@ export const useAuthStore = defineStore('auth', {
     async loginWithDingtalkCode(code: string) {
       await this.handleAuthSuccess(code);
       // 登录成功后，跳转到主页
-      this.router.push('/');
+      router.push('/');
     },
 
     logout() {
@@ -88,7 +91,7 @@ export const useAuthStore = defineStore('auth', {
       this.user = null;
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      this.router.push('/login');
+      router.push('/login');
     },
   },
 });

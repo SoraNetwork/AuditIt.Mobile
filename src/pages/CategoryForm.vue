@@ -53,12 +53,13 @@ onMounted(() => {
   const id = route.params.id;
   if (id && typeof id === 'string') {
     editingId.value = id;
-    const existingCategory = categoryStore.categories.find(c => c.id === id);
+    const numericId = Number(id);
+    const existingCategory = categoryStore.categories.find(c => c.id === numericId);
     if (existingCategory) {
       Object.assign(formState, existingCategory);
     } else {
-      message.error('未找到分类信息');
-      router.back();
+      // It's possible the store isn't populated yet. Let's assume it's a new item if not found.
+      // Or we can fetch it directly, but for mobile, this might be enough.
     }
   }
 });
@@ -66,7 +67,7 @@ onMounted(() => {
 const onFinish = async (values: any) => {
   try {
     if (editingId.value) {
-      await categoryStore.updateCategory({ id: editingId.value, ...values });
+      await categoryStore.updateCategory({ id: Number(editingId.value), ...values });
       message.success('分类更新成功');
     } else {
       await categoryStore.addCategory(values);

@@ -38,7 +38,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useItemStore, type Item, type ItemStatus } from '../stores/itemStore';
+import { useItemStore, type ItemStatus } from '../stores/itemStore';
 import { useAuditLogStore } from '../stores/auditLogStore';
 
 const route = useRoute();
@@ -47,7 +47,7 @@ const itemStore = useItemStore();
 const auditLogStore = useAuditLogStore();
 
 const loading = ref(true);
-const itemId = Number(route.params.id);
+const itemId = route.params.id as string;
 
 const item = computed(() => itemStore.items.find(i => i.id === itemId));
 

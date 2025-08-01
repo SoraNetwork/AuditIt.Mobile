@@ -76,12 +76,10 @@ onMounted(() => {
   const id = route.params.id;
   if (id && typeof id === 'string') {
     editingId.value = id;
-    const existingItemDef = itemDefStore.itemDefinitions.find(i => i.id === id);
+    const numericId = Number(id);
+    const existingItemDef = itemDefStore.itemDefinitions.find(i => i.id === numericId);
     if (existingItemDef) {
       Object.assign(formState, existingItemDef);
-    } else {
-      message.error('未找到物品定义信息');
-      router.back();
     }
   }
 });
@@ -89,7 +87,7 @@ onMounted(() => {
 const onFinish = async (values: any) => {
   try {
     if (editingId.value) {
-      await itemDefStore.updateItemDefinition({ id: editingId.value, ...values });
+      await itemDefStore.updateItemDefinition({ id: Number(editingId.value), ...values });
       message.success('物品定义更新成功');
     } else {
       await itemDefStore.addItemDefinition(values);

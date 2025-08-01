@@ -127,11 +127,11 @@ const handleConfirmInbound = async () => {
 const generateQRCodes = () => {
   itemStore.preInboundItems.forEach(item => {
     const canvas = document.getElementById(`qr-mobile-${item.id}`);
-    if (canvas) QRCode.toCanvas(canvas, item.id, { width: 60, margin: 1 }, e => e && console.error(e));
+    if (canvas) QRCode.toCanvas(canvas, item.shortId, { width: 60, margin: 1 }, e => e && console.error(e));
   });
 };
 
-const getItemDefName = (id: string) => itemDefStore.itemDefinitions.find(def => def.id === id)?.name || '未知';
+const getItemDefName = (id: number) => itemDefStore.itemDefinitions.find(def => def.id === id)?.name || '未知';
 
 const handlePrint = () => {
   const printContents = document.getElementById('print-area-mobile')?.innerHTML;

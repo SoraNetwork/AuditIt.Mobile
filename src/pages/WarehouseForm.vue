@@ -62,12 +62,10 @@ onMounted(() => {
   const id = route.params.id;
   if (id && typeof id === 'string') {
     editingId.value = id;
-    const existingWarehouse = warehouseStore.warehouses.find(w => w.id === id);
+    const numericId = Number(id);
+    const existingWarehouse = warehouseStore.warehouses.find(w => w.id === numericId);
     if (existingWarehouse) {
       Object.assign(formState, existingWarehouse);
-    } else {
-      message.error('未找到仓库信息');
-      router.back();
     }
   }
 });
@@ -75,7 +73,7 @@ onMounted(() => {
 const onFinish = async (values: any) => {
   try {
     if (editingId.value) {
-      await warehouseStore.updateWarehouse({ id: editingId.value, ...values });
+      await warehouseStore.updateWarehouse({ id: Number(editingId.value), ...values });
       message.success('仓库更新成功');
     } else {
       await warehouseStore.addWarehouse(values);

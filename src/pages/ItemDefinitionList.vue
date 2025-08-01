@@ -67,11 +67,11 @@ const goToNew = () => {
   router.push({ name: 'item-definition-new' });
 };
 
-const goToEdit = (id: string) => {
-  router.push({ name: 'item-definition-edit', params: { id } });
+const goToEdit = (id: number) => {
+  router.push({ name: 'item-definition-edit', params: { id: id.toString() } });
 };
 
-const handleDelete = async (id: string) => {
+const handleDelete = async (id: number) => {
   try {
     await itemDefStore.deleteItemDefinition(id);
     message.success('物品定义删除成功');

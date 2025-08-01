@@ -1,10 +1,12 @@
 import { onMounted, onBeforeUnmount, ref } from 'vue';
-import { Html5Qrcode, type QrboxFunction, type CameraDevice } from 'html5-qrcode';
+import { Html5Qrcode, type CameraDevice, type Html5QrcodeFullConfig } from 'html5-qrcode';
 import type { Html5QrcodeResult } from 'html5-qrcode/core';
+
+type Qrbox = (viewfinderWidth: number, viewfinderHeight: number) => { width: number; height: number; };
 
 interface ScannerOptions {
   readerId: string;
-  qrbox: QrboxFunction | { width: number; height: number };
+  qrbox: Qrbox | { width: number; height: number };
   fps?: number;
   onSuccess: (decodedText: string, result: Html5QrcodeResult) => void;
   onError?: (errorMessage: string) => void;
@@ -46,14 +48,18 @@ export function useScanner(options: ScannerOptions) {
     }
     element.innerHTML = '';
 
-    scanner.value = new Html5Qrcode(readerId, { experimentalFeatures: { useBarCodeDetectorIfSupported: true } });
+    const config: Html5QrcodeFullConfig = {
+      verbose: false,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    };
+    scanner.value = new Html5Qrcode(readerId, config);
     
-    const config = { fps, qrbox };
+    const scanConfig = { fps, qrbox };
 
     try {
       await scanner.value.start(
         deviceId,
-        config,
+        scanConfig,
         onSuccess,
         onError
       );

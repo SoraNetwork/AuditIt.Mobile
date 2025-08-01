@@ -4,6 +4,8 @@ name: Build and Deploy Mobile Frontend
 
 on:
   push:
+    branches:
+      - master # Deploys on push to master branch
   workflow_dispatch: # Allows manual triggering
 
 jobs:
@@ -16,7 +18,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18' # Specify Node.js version
+          node-version: '20.x' # Use a compatible LTS version
 
       - name: Create .env.local file
         run: |
@@ -30,6 +32,8 @@ jobs:
 
       - name: Build project
         run: npm run build
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
 
       - name: Deploy to dist branch
         uses: peaceiris/actions-gh-pages@v4
