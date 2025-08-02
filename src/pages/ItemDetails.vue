@@ -14,8 +14,8 @@
           </a-descriptions-item>
           <a-descriptions-item label="仓库">{{ item.warehouse?.name }}</a-descriptions-item>
           <a-descriptions-item label="备注">{{ item.remarks || '无' }}</a-descriptions-item>
-          <a-descriptions-item label="入库日期">{{ new Date(item.entryDate).toLocaleString() }}</a-descriptions-item>
-          <a-descriptions-item label="最后更新">{{ new Date(item.lastUpdated).toLocaleString() }}</a-descriptions-item>
+          <a-descriptions-item label="入库日期">{{ formatDateTime(item.entryDate) }}</a-descriptions-item>
+          <a-descriptions-item label="最后更新">{{ formatDateTime(item.lastUpdated) }}</a-descriptions-item>
         </a-descriptions>
       </div>
     </div>

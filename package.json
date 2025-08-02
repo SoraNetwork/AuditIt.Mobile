@@ -36,6 +36,7 @@
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/tsconfig": "^0.7.0",
     "concurrently": "^9.2.0",
+    "cross-env": "^10.0.0",
     "json-server": "^1.0.0-beta.3",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
