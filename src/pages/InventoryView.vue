@@ -1,7 +1,7 @@
 <template>
-  <div class="page-wrapper">
-    <div class="fixed-content" ref="fixedContentRef">
-      <a-page-header title="库存总览" :show-back="false" />
+  <div>
+    <a-page-header title="库存总览" :show-back="false" />
+    <div class="page-container">
       <!-- Filter and Search Section -->
       <div class="filter-controls">
         <a-form layout="vertical" :model="filters">
@@ -41,14 +41,13 @@
           placeholder="通过ID或名称搜索..."
         />
       </div>
-    </div>
 
-    <!-- Data List -->
-    <div class="scrollable-content" :style="{ height: scrollableHeight }">
+      <!-- Data List -->
       <a-list
         :data-source="displayData"
         :loading="isLoading"
         item-layout="vertical"
+        class="item-list"
       >
         <template #renderItem="{ item }">
           <a-list-item :key="item.id">
@@ -81,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, nextTick } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import { useItemStore, type Item, type ItemStatus } from '../stores/itemStore';
@@ -100,18 +99,6 @@ const filters = reactive<{ warehouseId?: number; status?: ItemStatus }>({
   warehouseId: undefined,
   status: undefined,
 });
-
-// Layout calculation
-const fixedContentRef = ref<HTMLElement | null>(null);
-const scrollableHeight = ref('400px'); // Default fallback height
-
-const calculateHeight = () => {
-  if (fixedContentRef.value) {
-    const fixedHeight = fixedContentRef.value.offsetHeight;
-    const bottomNavHeight = 60; // Height of the Default.vue footer
-    scrollableHeight.value = `calc(100vh - ${fixedHeight}px - ${bottomNavHeight}px)`;
-  }
-};
 
 const statusDisplay = (status: ItemStatus) => {
   return STATUS_MAP[status] || { text: '未知', color: 'gray' };
@@ -135,10 +122,8 @@ const fetchData = async () => {
   }
 };
 
-onMounted(async () => {
-  await fetchData();
-  await nextTick();
-  calculateHeight();
+onMounted(() => {
+  fetchData();
 });
 
 const displayData = computed(() => {
@@ -165,23 +150,15 @@ const applyFilters = () => {
 </script>
 
 <style scoped>
-.page-wrapper {
-  height: 100%;
-  width: 100%;
-  position: relative; /* Creates a stacking context */
-  z-index: 0;
-}
-.fixed-content {
-  background-color: #fff;
+/* Let the content determine the height, the global layout will handle scrolling */
+.page-container {
+  padding: 16px;
 }
 .filter-controls {
-  padding: 0 16px 16px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 16px;
 }
-.scrollable-content {
-  overflow-y: auto;
-  padding: 16px;
-  background-color: #f5f5f5;
+.item-list {
+  margin-top: 16px;
 }
 .card-title {
   font-weight: 600;

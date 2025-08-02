@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { useUiStore } from '../stores/uiStore'; // 导入 UI store
+import { useUiStore } from '../stores/uiStore';
 import {
   DashboardOutlined,
   DatabaseOutlined,
@@ -40,10 +40,11 @@ import {
   UserOutlined,
 } from '@ant-design/icons-vue';
 
-const uiStore = useUiStore(); // 获取 UI store 实例
+const uiStore = useUiStore();
 </script>
 
 <style>
+/* Global spin styles remain unchanged */
 .full-screen-spin .ant-spin-nested-loading {
   position: fixed;
   top: 0;
@@ -64,42 +65,38 @@ const uiStore = useUiStore(); // 获取 UI store 实例
 </style>
 
 <style scoped>
+/* Simplified Layout */
 .layout {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
   background: #f5f5f5;
-  overflow: hidden; /* Prevent the whole layout from scrolling */
 }
+
+/* The content wrapper is now just a simple block with padding */
 .content-wrapper {
-  flex: 1; /* Take up all available space */
-  overflow-y: auto; /* Enable vertical scrolling for the content area only */
-  position: relative; /* Establish a positioning context */
-  /* The padding-bottom is still useful to ensure there's space at the very end of the scroll */
-  padding-bottom: 60px; 
+  padding-bottom: 60px; /* MUST be equal to footer height */
 }
+
 .footer-tabs {
   position: fixed;
   bottom: 0;
   left: 0;
   width: 100%;
-  height: 60px; /* Fixed height for stability */
+  height: 60px;
   background: #ffffff;
   border-top: 1px solid #f0f0f0;
   z-index: 10;
-  display: flex; /* Use Flexbox for the container */
-  align-items: center; /* Vertically center all items */
-  justify-content: space-around; /* Distribute items evenly */
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
 }
 .tab-item {
-  flex: 1; /* Each item takes up equal space */
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #888; /* Default color for inactive items */
+  color: #888;
   text-decoration: none;
   gap: 4px;
   font-size: 12px;
@@ -107,9 +104,8 @@ const uiStore = useUiStore(); // 获取 UI store 实例
 .tab-item .anticon {
   font-size: 20px;
 }
-/* This is Vue Router's default class for the active link */
 .router-link-active,
 .router-link-exact-active {
-  color: #1677ff; /* Ant Design's primary color for active items */
+  color: #1677ff;
 }
 </style>
