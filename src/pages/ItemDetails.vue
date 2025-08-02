@@ -126,4 +126,7 @@ const getStatusText = (status: ItemStatus) => {
   margin-top: 8px;
   margin-bottom: 8px;
 }
+:deep(.ant-list-item) {
+  flex-shrink: 0;
+}
 </style>

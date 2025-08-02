@@ -181,4 +181,7 @@ const applyFilters = () => {
 .ant-form-item {
   margin-bottom: 8px;
 }
+:deep(.ant-list-item) {
+  flex-shrink: 0;
+}
 </style>
