@@ -1,49 +1,50 @@
 <template>
-  <div class="inventory-view-container">
-    <a-page-header title="库存总览" :show-back="false" />
-    
-    <!-- Filter and Search Section -->
-    <div class="filter-controls">
-      <a-form layout="vertical" :model="filters">
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item>
-              <a-select
-                v-model:value="filters.warehouseId"
-                placeholder="所有仓库"
-                allow-clear
-                @change="applyFilters"
-              >
-                <a-select-option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
-                  {{ wh.name }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item>
-              <a-select
-                v-model:value="filters.status"
-                placeholder="所有状态"
-                allow-clear
-                @change="applyFilters"
-              >
-                <a-select-option value="InStock">在库</a-select-option>
-                <a-select-option value="LoanedOut">借出</a-select-option>
-                <a-select-option value="Disposed">处置</a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-        </a-row>
-      </a-form>
-      <a-input-search
-        v-model:value="searchText"
-        placeholder="通过ID或名称搜索..."
-      />
+  <div class="page-wrapper">
+    <div class="fixed-content" ref="fixedContentRef">
+      <a-page-header title="库存总览" :show-back="false" />
+      <!-- Filter and Search Section -->
+      <div class="filter-controls">
+        <a-form layout="vertical" :model="filters">
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <a-form-item>
+                <a-select
+                  v-model:value="filters.warehouseId"
+                  placeholder="所有仓库"
+                  allow-clear
+                  @change="applyFilters"
+                >
+                  <a-select-option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
+                    {{ wh.name }}
+                  </a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item>
+                <a-select
+                  v-model:value="filters.status"
+                  placeholder="所有状态"
+                  allow-clear
+                  @change="applyFilters"
+                >
+                  <a-select-option value="InStock">在库</a-select-option>
+                  <a-select-option value="LoanedOut">借出</a-select-option>
+                  <a-select-option value="Disposed">处置</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </a-form>
+        <a-input-search
+          v-model:value="searchText"
+          placeholder="通过ID或名称搜索..."
+        />
+      </div>
     </div>
 
     <!-- Data List -->
-    <div class="list-wrapper">
+    <div class="scrollable-content" :style="{ height: scrollableHeight }">
       <a-list
         :data-source="displayData"
         :loading="isLoading"
@@ -80,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import { useItemStore, type Item, type ItemStatus } from '../stores/itemStore';
@@ -91,7 +92,6 @@ const router = useRouter();
 const itemStore = useItemStore();
 const warehouseStore = useWarehouseStore();
 
-// --- Local State ---
 const isLoading = ref(true);
 const items = ref<Item[]>([]);
 const warehouses = ref<Warehouse[]>([]);
@@ -101,11 +101,22 @@ const filters = reactive<{ warehouseId?: number; status?: ItemStatus }>({
   status: undefined,
 });
 
+// Layout calculation
+const fixedContentRef = ref<HTMLElement | null>(null);
+const scrollableHeight = ref('400px'); // Default fallback height
+
+const calculateHeight = () => {
+  if (fixedContentRef.value) {
+    const fixedHeight = fixedContentRef.value.offsetHeight;
+    const bottomNavHeight = 60; // Height of the Default.vue footer
+    scrollableHeight.value = `calc(100vh - ${fixedHeight}px - ${bottomNavHeight}px)`;
+  }
+};
+
 const statusDisplay = (status: ItemStatus) => {
   return STATUS_MAP[status] || { text: '未知', color: 'gray' };
 };
 
-// --- Data Fetching ---
 const fetchData = async () => {
   isLoading.value = true;
   try {
@@ -124,12 +135,12 @@ const fetchData = async () => {
   }
 };
 
-// --- Lifecycle Hooks ---
-onMounted(() => {
-  fetchData();
+onMounted(async () => {
+  await fetchData();
+  await nextTick();
+  calculateHeight();
 });
 
-// --- Computed Properties ---
 const displayData = computed(() => {
   const formattedItems = items.value.map(item => ({
     ...item,
@@ -148,26 +159,27 @@ const displayData = computed(() => {
   return formattedItems;
 });
 
-// --- Methods ---
 const applyFilters = () => {
   fetchData();
 };
 </script>
 
 <style scoped>
-.inventory-view-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%; /* Crucial for flexbox layout */
+.page-wrapper {
+  height: 100%;
+  overflow: hidden;
+}
+.fixed-content {
+  background-color: #fff;
 }
 .filter-controls {
   padding: 0 16px 16px 16px;
-  flex-shrink: 0; /* Prevent this area from shrinking */
+  border-bottom: 1px solid #f0f0f0;
 }
-.list-wrapper {
-  flex: 1; /* Take up all remaining space */
-  overflow-y: auto; /* Enable scrolling for this area only */
-  padding: 0 16px;
+.scrollable-content {
+  overflow-y: auto;
+  padding: 16px;
+  background-color: #f5f5f5;
 }
 .card-title {
   font-weight: 600;
@@ -180,8 +192,5 @@ const applyFilters = () => {
 }
 .ant-form-item {
   margin-bottom: 8px;
-}
-:deep(.ant-list-item) {
-  flex-shrink: 0;
 }
 </style>

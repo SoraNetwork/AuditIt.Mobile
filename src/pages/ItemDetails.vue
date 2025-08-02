@@ -1,14 +1,9 @@
 <template>
-  <div class="item-details-container">
-    <a-page-header v-if="item" :title="item.itemDefinition?.name" @back="() => router.back()" />
-    
-    <div v-if="loading" class="loading-container">
-      <a-spin size="large" />
-    </div>
-
-    <div v-else-if="item" class="content-wrapper">
-      <!-- Top Details Section -->
-      <div class="details-section">
+  <div class="page-wrapper">
+    <div class="fixed-content" ref="fixedContentRef">
+      <a-page-header v-if="item" :title="item.itemDefinition?.name" @back="() => router.back()" />
+      
+      <div v-if="!loading && item" class="details-section">
         <a-descriptions bordered :column="1">
           <a-descriptions-item label="短ID">{{ item.shortId }}</a-descriptions-item>
           <a-descriptions-item label="状态">
@@ -19,25 +14,29 @@
           <a-descriptions-item label="最后更新">{{ new Date(item.lastUpdated).toLocaleString() }}</a-descriptions-item>
         </a-descriptions>
       </div>
+    </div>
 
-      <!-- Scrollable Log List -->
-      <div class="log-list-wrapper">
-        <h3 class="log-title">操作历史</h3>
-        <a-list
-          :loading="auditLogStore.loading"
-          :data-source="auditLogStore.logs"
-          size="small"
-        >
-          <template #renderItem="{ item: log }">
-            <a-list-item>
-              <a-list-item-meta>
-                <template #title>{{ log.action }} - by {{ log.user }}</template>
-                <template #description>{{ new Date(log.timestamp).toLocaleString() }}</template>
-              </a-list-item-meta>
-            </a-list-item>
-          </template>
-        </a-list>
-      </div>
+    <div v-if="loading" class="loading-container">
+      <a-spin size="large" />
+    </div>
+
+    <!-- Scrollable Log List -->
+    <div v-else-if="item" class="scrollable-content" :style="{ height: scrollableHeight }">
+      <h3 class="log-title">操作历史</h3>
+      <a-list
+        :loading="auditLogStore.loading"
+        :data-source="auditLogStore.logs"
+        size="small"
+      >
+        <template #renderItem="{ item: log }">
+          <a-list-item>
+            <a-list-item-meta>
+              <template #title>{{ log.action }} - by {{ log.user }}</template>
+              <template #description>{{ new Date(log.timestamp).toLocaleString() }}</template>
+            </a-list-item-meta>
+          </a-list-item>
+        </template>
+      </a-list>
     </div>
 
     <a-empty v-else />
@@ -45,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useItemStore, type ItemStatus } from '../stores/itemStore';
 import { useAuditLogStore } from '../stores/auditLogStore';
@@ -58,11 +57,22 @@ const auditLogStore = useAuditLogStore();
 const loading = ref(true);
 const itemId = route.params.id as string;
 
+// Layout calculation
+const fixedContentRef = ref<HTMLElement | null>(null);
+const scrollableHeight = ref('300px'); // Default fallback height
+
 const item = computed(() => itemStore.items.find(i => i.id === itemId));
+
+const calculateHeight = () => {
+  if (fixedContentRef.value) {
+    const fixedHeight = fixedContentRef.value.offsetHeight;
+    const bottomNavHeight = 60; // Height of the Default.vue footer
+    scrollableHeight.value = `calc(100vh - ${fixedHeight}px - ${bottomNavHeight}px)`;
+  }
+};
 
 onMounted(async () => {
   loading.value = true;
-  // Ensure logs are cleared before fetching new ones
   auditLogStore.logs = []; 
   
   try {
@@ -73,6 +83,8 @@ onMounted(async () => {
     console.error("Failed to load item details:", error);
   } finally {
     loading.value = false;
+    await nextTick();
+    calculateHeight();
   }
 });
 
@@ -96,37 +108,27 @@ const getStatusText = (status: ItemStatus) => {
 </script>
 
 <style scoped>
-.item-details-container {
-  display: flex;
-  flex-direction: column;
+.page-wrapper {
   height: 100%;
+  overflow: hidden;
 }
-.loading-container {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-.content-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* Prevent entire wrapper from scrolling */
+.fixed-content {
+  background-color: #fff;
 }
 .details-section {
   padding: 0 16px 16px 16px;
-  flex-shrink: 0;
 }
-.log-list-wrapper {
-  flex: 1;
-  overflow-y: auto; /* Enable scrolling for the log list only */
+.loading-container {
+  padding-top: 50px;
+  text-align: center;
+}
+.scrollable-content {
+  overflow-y: auto;
   padding: 0 16px;
+  background-color: #f5f5f5;
 }
 .log-title {
-  margin-top: 8px;
+  padding-top: 16px;
   margin-bottom: 8px;
-}
-:deep(.ant-list-item) {
-  flex-shrink: 0;
 }
 </style>
