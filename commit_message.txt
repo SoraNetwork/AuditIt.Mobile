@@ -1,1 +1,1 @@
-fix(mobile-auth): Enable external browser SSO and fix build
+fix(ui): Center login spinner and fix global loading overlay

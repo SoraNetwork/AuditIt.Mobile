@@ -39,21 +39,22 @@ const uiStore = useUiStore(); // 获取 UI store 实例
 </script>
 
 <style>
-/* 使用 :deep() 或 >>> 来穿透 scoped 样式 */
-.full-screen-spin .ant-spin-container {
-  height: 100vh;
-}
-.full-screen-spin .ant-spin-spinning {
+.full-screen-spin .ant-spin-nested-loading {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(255, 255, 255, 0.7);
+  width: 100vw;
+  height: 100vh;
   z-index: 9999;
+}
+.full-screen-spin .ant-spin-spinning {
+  position: absolute;
   display: flex;
   align-items: center;
   justify-content: center;
+  background-color: rgba(255, 255, 255, 0.7);
+  width: 100%;
+  height: 100%;
 }
 </style>
 

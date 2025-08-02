@@ -1,6 +1,9 @@
 <template>
   <div class="login-container">
-    <a-card class="login-card">
+    <div v-if="status === 'loading'" class="fullscreen-spin">
+      <a-spin :tip="loadingMessage" size="large" />
+    </div>
+    <a-card v-else class="login-card">
       <template #title>
         <div class="card-title">
           <img src="/vite.svg" alt="logo" class="logo" />
@@ -8,11 +11,7 @@
         </div>
       </template>
 
-      <div v-if="status === 'loading'">
-        <a-spin :tip="loadingMessage" size="large" />
-      </div>
-      
-      <div v-else-if="status === 'error'">
+      <div v-if="status === 'error'">
          <a-result
             status="error"
             title="登录失败"
@@ -141,6 +140,13 @@ onMounted(() => {
   height: 100vh;
   background-color: #f0f2f5;
   padding: 16px;
+}
+.fullscreen-spin {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
 }
 .login-card {
   width: 100%;
