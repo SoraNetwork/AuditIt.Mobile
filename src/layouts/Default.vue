@@ -79,9 +79,10 @@ const uiStore = useUiStore(); // 获取 UI store 实例
   padding-bottom: 60px; 
 }
 .footer-tabs {
-  width: 95vw;
+  position: fixed;
   bottom: 0;
   left: 0;
+  width: 100%;
   height: 60px; /* Fixed height for stability */
   background: #ffffff;
   border-top: 1px solid #f0f0f0;
