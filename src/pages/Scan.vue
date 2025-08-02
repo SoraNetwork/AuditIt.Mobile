@@ -9,10 +9,24 @@
 
       <!-- Scan Mode -->
       <div v-if="inputMode === 'scan'">
-        <div v-show="!selectedItem && !scanError" id="reader" ref="readerRef"></div>
+        <div v-show="!selectedItem && !scanError">
+          <div id="reader" ref="readerRef"></div>
+           <a-select
+            v-if="cameras.length > 1 && isScanning"
+            v-model:value="selectedCameraId"
+            placeholder="选择摄像头"
+            style="margin-top: 8px; width: 100%"
+            @change="handleCameraChange"
+          >
+            <a-select-option v-for="camera in cameras" :key="camera.id" :value="camera.id">
+              {{ camera.label }}
+            </a-select-option>
+          </a-select>
+        </div>
         <div class="controls" v-if="!selectedItem">
-          <a-button @click="startScan" :disabled="isScanning">开始扫描</a-button>
-          <a-button @click="stopScan" :disabled="!isScanning" danger>停止扫描</a-button>
+          <a-button @click="toggleScan" :danger="isScanning" block size="large">
+            {{ isScanning ? '停止扫描' : '开始扫描' }}
+          </a-button>
         </div>
       </div>
 
@@ -70,7 +84,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, type CameraDevice } from 'html5-qrcode';
 import { useItemStore, type Item, type ItemStatus } from '../stores/itemStore';
 import { message } from 'ant-design-vue';
 
@@ -84,33 +98,77 @@ const selectedItem = ref<Item | null>(null);
 const scanError = ref<string | null>(null);
 const readerRef = ref<HTMLElement | null>(null);
 
-const startScan = () => {
-  if (!readerRef.value) {
-    // Defer to next tick if element not ready
-    setTimeout(startScan, 100);
-    return;
-  }
+// Camera state
+const cameras = ref<CameraDevice[]>([]);
+const selectedCameraId = ref<string | null>(null);
+
+const initScanner = async () => {
+  if (!readerRef.value) return;
   if (!html5Qrcode) {
-    html5Qrcode = new Html5Qrcode(readerRef.value.id);
+    html5Qrcode = new Html5Qrcode(readerRef.value.id, { verbose: false });
   }
+
+  if (cameras.value.length === 0) {
+    try {
+      const availableCameras = await Html5Qrcode.getCameras();
+      if (availableCameras && availableCameras.length) {
+        cameras.value = availableCameras;
+        let preferredCamera = availableCameras.find(c => c.label.toLowerCase().includes('back')) || 
+                              availableCameras.find(c => c.label.toLowerCase().includes('rear')) ||
+                              availableCameras[0];
+        selectedCameraId.value = preferredCamera.id;
+      } else {
+        scanError.value = "未找到摄像头设备。";
+      }
+    } catch (err) {
+      scanError.value = "获取摄像头列表失败，请检查权限。";
+    }
+  }
+};
+
+const startScan = (deviceId: string) => {
+  if (!html5Qrcode) return;
   
   reset();
-
   const config = { fps: 10, qrbox: { width: 250, height: 250 } };
   const onScanSuccess = async (decodedText: string) => {
-    stopScan();
+    await stopScan();
     await fetchItemByShortId(decodedText);
   };
 
-  html5Qrcode.start({ facingMode: "environment" }, config, onScanSuccess, undefined)
+  html5Qrcode.start(deviceId, config, onScanSuccess, undefined)
     .then(() => { isScanning.value = true; })
-    .catch(_err => { scanError.value = "无法启动摄像头。请检查权限。"; });
+    .catch(_err => { scanError.value = "无法启动摄像头。"; });
 };
 
-const stopScan = () => {
+const stopScan = async () => {
   if (html5Qrcode && isScanning.value) {
-    html5Qrcode.stop().then(() => { isScanning.value = false; });
+    try {
+      await html5Qrcode.stop();
+    } catch (err) {
+      console.error("Error stopping scanner:", err);
+    } finally {
+      isScanning.value = false;
+    }
   }
+};
+
+const toggleScan = async () => {
+  if (isScanning.value) {
+    await stopScan();
+  } else {
+    if (selectedCameraId.value) {
+      startScan(selectedCameraId.value);
+    } else {
+      scanError.value = "没有可用的摄像头。";
+    }
+  }
+};
+
+const handleCameraChange = async (newCameraId: string) => {
+  await stopScan();
+  selectedCameraId.value = newCameraId;
+  startScan(newCameraId);
 };
 
 const onManualSearch = (searchValue: string) => {
@@ -145,17 +203,21 @@ const reset = () => {
   itemStore.items = [];
 };
 
-watch(inputMode, (newMode) => {
+watch(inputMode, async (newMode) => {
   if (newMode === 'scan') {
-    startScan();
+    await initScanner();
+    if (selectedCameraId.value) {
+      startScan(selectedCameraId.value);
+    }
   } else {
-    stopScan();
+    await stopScan();
   }
 });
 
-onMounted(() => {
-  if (inputMode.value === 'scan') {
-    startScan();
+onMounted(async () => {
+  await initScanner();
+  if (inputMode.value === 'scan' && selectedCameraId.value) {
+    startScan(selectedCameraId.value);
   }
 });
 

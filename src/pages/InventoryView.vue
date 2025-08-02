@@ -1,54 +1,53 @@
 <template>
-  <div>
+  <div class="inventory-view-container">
     <a-page-header title="库存总览" :show-back="false" />
-    <div class="page-container">
-      <!-- Filter and Search Section -->
-      <div class="filter-controls">
-        <a-form layout="vertical" :model="filters">
-          <a-row :gutter="16">
-            <a-col :span="12">
-              <a-form-item>
-                <a-select
-                  v-model:value="filters.warehouseId"
-                  placeholder="所有仓库"
-                  allow-clear
-                  @change="applyFilters"
-                >
-                  <a-select-option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
-                    {{ wh.name }}
-                  </a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-            <a-col :span="12">
-              <a-form-item>
-                <a-select
-                  v-model:value="filters.status"
-                  placeholder="所有状态"
-                  allow-clear
-                  @change="applyFilters"
-                >
-                  <a-select-option value="InStock">在库</a-select-option>
-                  <a-select-option value="LoanedOut">借出</a-select-option>
-                  <a-select-option value="Disposed">处置</a-select-option>
-                </a-select>
-              </a-form-item>
-            </a-col>
-          </a-row>
-        </a-form>
-        <a-input-search
-          v-model:value="searchText"
-          placeholder="通过ID或名称搜索..."
-          style="margin-top: 8px;"
-        />
-      </div>
+    
+    <!-- Filter and Search Section -->
+    <div class="filter-controls">
+      <a-form layout="vertical" :model="filters">
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item>
+              <a-select
+                v-model:value="filters.warehouseId"
+                placeholder="所有仓库"
+                allow-clear
+                @change="applyFilters"
+              >
+                <a-select-option v-for="wh in warehouses" :key="wh.id" :value="wh.id">
+                  {{ wh.name }}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item>
+              <a-select
+                v-model:value="filters.status"
+                placeholder="所有状态"
+                allow-clear
+                @change="applyFilters"
+              >
+                <a-select-option value="InStock">在库</a-select-option>
+                <a-select-option value="LoanedOut">借出</a-select-option>
+                <a-select-option value="Disposed">处置</a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+      <a-input-search
+        v-model:value="searchText"
+        placeholder="通过ID或名称搜索..."
+      />
+    </div>
 
-      <!-- Data List -->
+    <!-- Data List -->
+    <div class="list-wrapper">
       <a-list
         :data-source="displayData"
         :loading="isLoading"
         item-layout="vertical"
-        class="item-list"
       >
         <template #renderItem="{ item }">
           <a-list-item :key="item.id">
@@ -110,20 +109,16 @@ const statusDisplay = (status: ItemStatus) => {
 const fetchData = async () => {
   isLoading.value = true;
   try {
-    // Fetch items and warehouses for filtering in parallel
     await Promise.all([
       itemStore.fetchItems({ ...filters }),
       warehouseStore.fetchWarehouses(),
     ]);
-    
-    // The stores will update themselves, we can grab the data from there.
     items.value = itemStore.items;
     warehouses.value = warehouseStore.warehouses;
-
   } catch (error) {
     console.error("Failed to fetch inventory data:", error);
     message.error("加载库存数据失败");
-    items.value = []; // Clear data on error
+    items.value = [];
   } finally {
     isLoading.value = false;
   }
@@ -136,14 +131,12 @@ onMounted(() => {
 
 // --- Computed Properties ---
 const displayData = computed(() => {
-  // 1. Map raw item data to a display-friendly format
   const formattedItems = items.value.map(item => ({
     ...item,
     name: item.itemDefinition?.name || '未知物品',
     warehouseName: item.warehouse?.name || '未知仓库',
   }));
 
-  // 2. Filter by search text
   if (searchText.value) {
     const lowerCaseQuery = searchText.value.toLowerCase();
     return formattedItems.filter(item =>
@@ -152,29 +145,29 @@ const displayData = computed(() => {
     );
   }
   
-  // 3. Return formatted data if no search text
   return formattedItems;
 });
 
 // --- Methods ---
 const applyFilters = () => {
-  // Refetch data from the API with the new filters
   fetchData();
 };
 </script>
 
 <style scoped>
-.page-container {
-  padding: 16px;
+.inventory-view-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* Crucial for flexbox layout */
 }
 .filter-controls {
-  margin-bottom: 16px;
+  padding: 0 16px 16px 16px;
+  flex-shrink: 0; /* Prevent this area from shrinking */
 }
-.filter-form .ant-form-item {
-  margin-bottom: 8px;
-}
-.item-list {
-  margin-top: 16px;
+.list-wrapper {
+  flex: 1; /* Take up all remaining space */
+  overflow-y: auto; /* Enable scrolling for this area only */
+  padding: 0 16px;
 }
 .card-title {
   font-weight: 600;
@@ -184,5 +177,8 @@ const applyFilters = () => {
   color: #888;
   word-break: break-all;
   margin-top: 8px;
+}
+.ant-form-item {
+  margin-bottom: 8px;
 }
 </style>

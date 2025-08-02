@@ -1,9 +1,9 @@
 <template>
   <a-spin :spinning="uiStore.isLoading" tip="加载中..." size="large" wrapperClassName="full-screen-spin">
     <a-layout class="layout">
-      <a-layout-content class="content">
+      <div class="content-wrapper">
         <router-view />
-      </a-layout-content>
+      </div>
       <div class="footer-tabs">
         <router-link to="/dashboard" class="tab-item">
           <dashboard-outlined />
@@ -12,6 +12,10 @@
         <router-link to="/inventory" class="tab-item">
           <database-outlined />
           <span>总览</span>
+        </router-link>
+        <router-link to="/item-creation" class="tab-item">
+          <plus-circle-outlined />
+          <span>添加</span>
         </router-link>
         <router-link to="/scan" class="tab-item">
           <scan-outlined />
@@ -31,6 +35,7 @@ import { useUiStore } from '../stores/uiStore'; // 导入 UI store
 import {
   DashboardOutlined,
   DatabaseOutlined,
+  PlusCircleOutlined,
   ScanOutlined,
   UserOutlined,
 } from '@ant-design/icons-vue';
@@ -60,11 +65,17 @@ const uiStore = useUiStore(); // 获取 UI store 实例
 
 <style scoped>
 .layout {
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   background: #f5f5f5;
+  overflow: hidden; /* Prevent the whole layout from scrolling */
 }
-.content {
-  /* Add padding to the bottom to prevent content from being hidden by the fixed footer */
+.content-wrapper {
+  flex: 1; /* Take up all available space */
+  overflow-y: auto; /* Enable vertical scrolling for the content area only */
+  position: relative; /* Establish a positioning context */
+  /* The padding-bottom is still useful to ensure there's space at the very end of the scroll */
   padding-bottom: 60px; 
 }
 .footer-tabs {

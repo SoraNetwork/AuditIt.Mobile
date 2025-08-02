@@ -89,6 +89,12 @@ const routes = [
         meta: { title: '编辑定义' },
       },
       {
+        path: 'item-creation',
+        name: 'item-creation',
+        component: () => import('../pages/ItemCreation.vue'),
+        meta: { title: '添加物品' },
+      },
+      {
         path: 'scan',
         name: 'scan',
         component: () => import('../pages/Scan.vue'),
