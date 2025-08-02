@@ -26,15 +26,17 @@
       <a-list
         :loading="auditLogStore.loading"
         :data-source="auditLogStore.logs"
-        size="small"
+        :split="false"
       >
         <template #renderItem="{ item: log }">
-          <a-list-item>
-            <a-list-item-meta>
-              <template #title>{{ log.action }} - by {{ log.user }}</template>
-              <template #description>{{ new Date(log.timestamp).toLocaleString() }}</template>
-            </a-list-item-meta>
-          </a-list-item>
+          <div class="list-item-wrapper">
+            <a-card>
+              <a-list-item-meta>
+                <template #title>{{ log.action }} - by {{ log.user }}</template>
+                <template #description>{{ new Date(log.timestamp).toLocaleString() }}</template>
+              </a-list-item-meta>
+            </a-card>
+          </div>
         </template>
       </a-list>
     </div>
@@ -111,7 +113,7 @@ const getStatusText = (status: ItemStatus) => {
 .page-wrapper {
   height: 100%;
   width: 100%;
-  position: relative; /* Creates a stacking context */
+  position: relative;
   z-index: 0;
 }
 .fixed-content {
@@ -132,5 +134,8 @@ const getStatusText = (status: ItemStatus) => {
 .log-title {
   padding-top: 16px;
   margin-bottom: 8px;
+}
+.list-item-wrapper {
+  margin-bottom: 12px;
 }
 </style>

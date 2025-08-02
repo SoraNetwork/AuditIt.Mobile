@@ -48,10 +48,10 @@
       <a-list
         :data-source="displayData"
         :loading="isLoading"
-        item-layout="vertical"
+        :split="false"
       >
         <template #renderItem="{ item }">
-          <a-list-item :key="item.id">
+          <div class="list-item-wrapper">
             <router-link :to="{ name: 'item-details', params: { id: item.id } }">
               <a-card hoverable>
                 <template #title>
@@ -67,7 +67,7 @@
                 <p class="item-id"><strong>UUID:</strong> {{ item.id }}</p>
               </a-card>
             </router-link>
-          </a-list-item>
+          </div>
         </template>
 
         <template #empty>
@@ -168,7 +168,7 @@ const applyFilters = () => {
 .page-wrapper {
   height: 100%;
   width: 100%;
-  position: relative; /* Creates a stacking context */
+  position: relative;
   z-index: 0;
 }
 .fixed-content {
@@ -182,6 +182,9 @@ const applyFilters = () => {
   overflow-y: auto;
   padding: 16px;
   background-color: #f5f5f5;
+}
+.list-item-wrapper {
+  margin-bottom: 16px;
 }
 .card-title {
   font-weight: 600;
