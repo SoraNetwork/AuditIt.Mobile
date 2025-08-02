@@ -45,7 +45,6 @@ const uiStore = useUiStore(); // 获取 UI store 实例
 
 <style>
 .full-screen-spin .ant-spin-nested-loading {
-  position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
