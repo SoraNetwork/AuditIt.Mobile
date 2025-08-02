@@ -137,5 +137,6 @@ const getStatusText = (status: ItemStatus) => {
 }
 .list-item-wrapper {
   margin-bottom: 12px;
+  width: 95vw;
 }
 </style>

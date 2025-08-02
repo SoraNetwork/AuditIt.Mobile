@@ -185,6 +185,7 @@ const applyFilters = () => {
 }
 .list-item-wrapper {
   margin-bottom: 16px;
+  width: 95vw;
 }
 .card-title {
   font-weight: 600;

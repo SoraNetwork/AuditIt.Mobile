@@ -129,6 +129,7 @@ onMounted(async () => {
 }
 .list-item-wrapper {
   margin-bottom: 16px;
+  width: 95vw;
 }
 .log-meta { 
   font-size: 12px; 
