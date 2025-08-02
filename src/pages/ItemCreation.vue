@@ -185,9 +185,7 @@ const handleSave = async () => {
   if (formState.photo) formData.append('photo', formState.photo);
 
   try {
-    await apiClient.post('/items/create', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    await apiClient.post('/items/create', formData);
     message.success('物品已成功入库!');
     resetForm();
   } catch (error) {
