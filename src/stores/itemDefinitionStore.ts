@@ -32,7 +32,8 @@ export const useItemDefinitionStore = defineStore('itemDefinition', {
       this.error = null;
       try {
         const response = await apiClient.get<ItemDefinition[]>('/itemDefinitions');
-        this.itemDefinitions = response.data;
+        // Sort by ID descending (newest first)
+        this.itemDefinitions = response.data.sort((a, b) => b.id - a.id);
       } catch (err: any) {
         this.error = 'Failed to fetch item definitions: ' + (err.response?.data?.message || err.message);
         console.error(err);
@@ -40,13 +41,14 @@ export const useItemDefinitionStore = defineStore('itemDefinition', {
         this.loading = false;
       }
     },
-    async addItemDefinition(itemDefPayload: CreateItemDefinitionPayload) {
+    async addItemDefinition(itemDefPayload: CreateItemDefinitionPayload): Promise<ItemDefinition> {
       this.loading = true;
       this.error = null;
       try {
         const response = await apiClient.post<ItemDefinition>('/itemDefinitions', itemDefPayload);
         // Add the new definition to the top of the list
         this.itemDefinitions.unshift(response.data);
+        return response.data; // Return the new item
       } catch (err: any) {
         this.error = 'Failed to add item definition: ' + (err.response?.data?.message || err.message);
         console.error(err);

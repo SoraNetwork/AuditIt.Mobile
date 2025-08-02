@@ -37,7 +37,7 @@
             <a-card>
               <a-list-item-meta>
                 <template #title>{{ log.action }} - by {{ log.user }}</template>
-                <template #description>{{ new Date(log.timestamp).toLocaleString() }}</template>
+                <template #description>{{ formatDateTime(log.timestamp) }}</template>
               </a-list-item-meta>
             </a-card>
           </div>
@@ -55,6 +55,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useItemStore, type ItemStatus } from '../stores/itemStore';
 import { useAuditLogStore } from '../stores/auditLogStore';
 import apiClient from '../services/api';
+import { formatDateTime } from '../utils/formatters';
 
 const route = useRoute();
 const router = useRouter();

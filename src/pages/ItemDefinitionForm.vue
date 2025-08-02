@@ -47,6 +47,8 @@ import { useCategoryStore } from '../stores/categoryStore';
 import { message } from 'ant-design-vue';
 import type { FormInstance } from 'ant-design-vue';
 
+const emit = defineEmits(['submitted']);
+
 const route = useRoute();
 const router = useRouter();
 const itemDefStore = useItemDefinitionStore();
@@ -89,11 +91,12 @@ const onFinish = async (values: any) => {
     if (editingId.value) {
       await itemDefStore.updateItemDefinition({ id: Number(editingId.value), ...values });
       message.success('物品定义更新成功');
+      router.back(); // Go back if editing
     } else {
-      await itemDefStore.addItemDefinition(values);
+      const newItem = await itemDefStore.addItemDefinition(values);
       message.success('物品定义添加成功');
+      emit('submitted', newItem); // Emit event for creation
     }
-    router.back();
   } catch (error) {
     message.error('保存失败');
   }

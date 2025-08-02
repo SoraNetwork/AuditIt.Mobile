@@ -20,7 +20,7 @@
           <div class="list-item-wrapper">
             <a-card>
               <p><strong>{{ item.action }}</strong> - <router-link :to="{ name: 'item-details', params: { id: item.itemId } }">{{ item.itemShortId }}</router-link></p>
-              <p class="log-meta">{{ new Date(item.timestamp).toLocaleString() }}</p>
+              <p class="log-meta">{{ formatDateTime(item.timestamp) }}</p>
               <p class="log-meta">操作人: {{ item.user }} | 仓库: {{ item.warehouseName }}</p>
             </a-card>
           </div>
@@ -63,6 +63,7 @@ import { useRouter } from 'vue-router';
 import { useAuditLogStore } from '../stores/auditLogStore';
 import { FilterOutlined } from '@ant-design/icons-vue';
 import dayjs from 'dayjs';
+import { formatDateTime } from '../utils/formatters';
 
 const router = useRouter();
 const auditLogStore = useAuditLogStore();
