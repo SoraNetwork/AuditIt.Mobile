@@ -1,5 +1,5 @@
 <template>
-  <a-spin :spinning="uiStore.isLoading" tip="加载中..." size="large">
+  <a-spin :spinning="uiStore.isLoading" tip="加载中..." size="large" wrapperClassName="full-screen-spin">
     <a-layout class="layout">
       <div class="content-wrapper">
         <router-view />
@@ -44,7 +44,23 @@ const uiStore = useUiStore(); // 获取 UI store 实例
 </script>
 
 <style>
-/* Global styles can be added here if needed in the future */
+.full-screen-spin .ant-spin-nested-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+}
+.full-screen-spin .ant-spin-spinning {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.7);
+  width: 100%;
+  height: 100%;
+}
 </style>
 
 <style scoped>
