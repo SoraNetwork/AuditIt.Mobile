@@ -67,11 +67,50 @@
       </a-form-item>
 
       <a-form-item>
-        <a-button type="primary" @click="handleSave" :loading="isSaving" :disabled="!isFormValid" block size="large">
-          确认入库
+        <a-button type="default" @click="handleAddItemToList" :disabled="!isFormValid" block size="large">
+          添加到列表
         </a-button>
       </a-form-item>
     </a-form>
+
+    <!-- Inbound List -->
+    <div class="list-container">
+      <a-list
+        item-layout="horizontal"
+        :data-source="inboundList"
+        :locale="{ emptyText: '暂无待入库物品' }"
+      >
+        <template #header>
+          <div class="list-header">
+            <h3>待入库列表 ({{ inboundList.length }})</h3>
+            <a-button
+              type="primary"
+              @click="handleSaveAndExport"
+              :loading="isSaving"
+              :disabled="inboundList.length === 0"
+            >
+              保存并导出
+            </a-button>
+          </div>
+        </template>
+        <template #renderItem="{ item, index }">
+          <a-list-item>
+            <template #actions>
+              <a key="list-remove" @click="handleRemoveFromList(index)" style="color: red">移除</a>
+            </template>
+            <a-list-item-meta>
+              <template #title>
+                <a>{{ item.definitionName }}</a>
+              </template>
+              <template #description>
+                <span class="description-text">条码: {{ item.shortId }}</span>
+                <span class="description-text" v-if="item.remarks">备注: {{ item.remarks }}</span>
+              </template>
+            </a-list-item-meta>
+          </a-list-item>
+        </template>
+      </a-list>
+    </div>
 
     <a-modal :open="previewVisible" :title="previewTitle" :footer="null" @cancel="handleCancelPreview">
       <img alt="example" style="width: 100%" :src="previewImage" />
@@ -93,17 +132,21 @@ import { PlusOutlined } from '@ant-design/icons-vue';
 import { Html5Qrcode, Html5QrcodeScannerState, type CameraDevice } from 'html5-qrcode';
 import apiClient from '../services/api';
 import ItemDefinitionForm from './ItemDefinitionForm.vue';
+import * as XLSX from 'xlsx';
 
 // Stores & Router
 const router = useRouter();
 const itemDefinitionStore = useItemDefinitionStore();
 const warehouseStore = useWarehouseStore();
 
+// Inbound List
+const inboundList = ref<any[]>([]);
+
 // Form State
 const formState = reactive({
   shortId: '',
-  itemDefinitionId: null,
-  warehouseId: null,
+  itemDefinitionId: null as number | null,
+  warehouseId: null as number | null,
   remarks: '',
   photo: null as File | null,
 });
@@ -139,7 +182,7 @@ onUnmounted(() => {
 const handleFileChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
   fileList.value = newFileList;
   if (newFileList.length > 0 && newFileList[0].originFileObj) {
-    formState.photo = newFileList[0].originFileObj;
+    formState.photo = newFileList[0].originFileObj as File;
   } else {
     formState.photo = null;
   }
@@ -175,21 +218,52 @@ const resetForm = () => {
   fileList.value = [];
 };
 
-const handleSave = async () => {
-  isSaving.value = true;
-  const formData = new FormData();
-  formData.append('shortId', formState.shortId);
-  formData.append('itemDefinitionId', String(formState.itemDefinitionId!));
-  formData.append('warehouseId', String(formState.warehouseId!));
-  if (formState.remarks) formData.append('remarks', formState.remarks);
-  if (formState.photo) formData.append('photo', formState.photo);
+const handleAddItemToList = () => {
+  const definition = itemDefinitionStore.itemDefinitions.find(d => d.id === formState.itemDefinitionId);
+  inboundList.value.push({
+    ...formState,
+    definitionName: definition?.name || '未知',
+  });
+  message.success(`物品 ${formState.shortId} 已添加到列表`);
+  resetForm();
+};
 
+const handleRemoveFromList = (index: number) => {
+  inboundList.value.splice(index, 1);
+};
+
+const handleSaveAndExport = async () => {
+  isSaving.value = true;
+  const savedItems = [];
   try {
-    await apiClient.post('/items/create', formData);
-    message.success('物品已成功入库!');
-    resetForm();
+    for (const item of inboundList.value) {
+      const formData = new FormData();
+      formData.append('shortId', item.shortId);
+      formData.append('itemDefinitionId', String(item.itemDefinitionId!));
+      formData.append('warehouseId', String(item.warehouseId!));
+      if (item.remarks) formData.append('remarks', item.remarks);
+      if (item.photo) formData.append('photo', item.photo);
+
+      const response = await apiClient.post('/items/create', formData);
+      savedItems.push(response.data);
+    }
+    
+    message.success(`${inboundList.value.length}个物品已成功保存!`);
+
+    const dataForExport = savedItems.map(item => ({
+      '物品名称': item.itemDefinition?.name || '未知',
+      '短ID': item.shortId,
+      '备注': item.remarks || '',
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataForExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '入库物品');
+    XLSX.writeFile(workbook, `inbound_items_${Date.now()}.xlsx`);
+
+    inboundList.value = []; // Clear the list
   } catch (error) {
-    message.error('保存失败，请检查条码是否已存在。');
+    message.error('保存过程中发生错误。');
     console.error(error);
   } finally {
     isSaving.value = false;
@@ -279,6 +353,18 @@ const toggleScanner = async () => {
 }
 .form-container {
   padding: 16px;
+  padding-bottom: 0;
+}
+.list-container {
+  padding: 0 16px;
+}
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.description-text {
+  margin-right: 8px;
 }
 #qr-code-reader {
   width: 100%;
