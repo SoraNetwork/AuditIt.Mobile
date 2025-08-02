@@ -114,6 +114,7 @@ const initScanner = async () => {
       if (availableCameras && availableCameras.length) {
         cameras.value = availableCameras;
         let preferredCamera = availableCameras.find(c => c.label.toLowerCase().includes('back')) || 
+                              availableCameras.find(c => c.label.toLowerCase().includes('后置')) || 
                               availableCameras.find(c => c.label.toLowerCase().includes('rear')) ||
                               availableCameras[0];
         selectedCameraId.value = preferredCamera.id;

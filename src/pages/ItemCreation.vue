@@ -4,9 +4,10 @@
     <a-form :model="formState" layout="vertical" class="form-container">
       <a-form-item label="外部条码 (ShortId)" name="shortId">
         <a-input-group compact>
-          <a-input v-model:value="formState.shortId" placeholder="扫描或输入外部条码" style="width: calc(100% - 90px)" />
-          <a-button type="primary" @click="toggleScanner">
-            {{ isScannerActive ? '关闭扫描' : '扫码' }}
+          <a-input v-model:value="formState.shortId" placeholder="扫描或输入外部条码" style="width: calc(100% - 150px)" />
+          <a-button @click="generateId" style="width: 60px">生成</a-button>
+          <a-button type="primary" @click="toggleScanner" style="width: 90px">
+            {{ isScannerActive ? '关闭' : '扫码' }}
           </a-button>
         </a-input-group>
       </a-form-item>
@@ -133,6 +134,7 @@ import { Html5Qrcode, Html5QrcodeScannerState, type CameraDevice } from 'html5-q
 import apiClient from '../services/api';
 import ItemDefinitionForm from './ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
+import { v4 as uuidv4 } from 'uuid';
 
 // Stores & Router
 const router = useRouter();
@@ -144,6 +146,7 @@ const inboundList = ref<any[]>([]);
 
 // Form State
 const formState = reactive({
+  id: null as string | null, // To hold the full UUID if generated client-side
   shortId: '',
   itemDefinitionId: null as number | null,
   warehouseId: null as number | null,
@@ -209,7 +212,14 @@ const handleCancelPreview = () => {
   previewVisible.value = false;
 };
 
+const generateId = () => {
+  const newId = uuidv4();
+  formState.id = newId;
+  formState.shortId = newId.substring(0, 8).toUpperCase();
+};
+
 const resetForm = () => {
+  formState.id = null;
   formState.shortId = '';
   formState.itemDefinitionId = null;
   formState.warehouseId = null;
