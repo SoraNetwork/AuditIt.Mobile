@@ -9,12 +9,7 @@ const routes = [
     component: () => import('../pages/Login.vue'),
     meta: { title: '登录' },
   },
-  {
-    path: '/dingtalk-oauth',
-    name: 'dingtalk-oauth',
-    component: () => import('../pages/DingtalkOAuth.vue'),
-    meta: { title: '钉钉授权' },
-  },
+  
   {
     path: '/',
     component: () => import('../layouts/Default.vue'),
