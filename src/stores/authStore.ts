@@ -1,15 +1,17 @@
 import { defineStore } from 'pinia';
-import * as dd from 'dingtalk-jsapi';
 import apiClient from '../services/api';
 import router from '../router';
 
-interface AuthState {
-  token: string | null;
-  user: Record<string, any> | null;
+interface User {
+  id: string;
+  name: string;
+  dingTalkId: string;
 }
 
-// 可靠的环境判断
-const isDingtalk = /DingTalk/.test(navigator.userAgent);
+interface AuthState {
+  token: string | null;
+  user: User | null;
+}
 
 export const useAuthStore = defineStore('auth', {
   state: (): AuthState => ({
@@ -20,78 +22,67 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: (state) => !!state.token,
   },
   actions: {
-    // 统一的登录入口
-    async login() {
-      if (isDingtalk) {
-        return this.loginWithDingtalkH5();
-      } else {
-        return this.redirectToDingtalkOAuth();
-      }
-    },
-
-    // H5 免密登录 (钉钉环境内)
-    async loginWithDingtalkH5() {
-      return new Promise<void>((resolve, reject) => {
-        dd.ready(() => {
-          const corpId = import.meta.env.VITE_DINGTALK_CORP_ID;
-          if (!corpId) return reject(new Error('钉钉 CorpId 未配置!'));
-
-          dd.runtime.permission.requestAuthCode({
-            corpId: corpId
-          }).then((result: { code: string }) => {
-            this.handleAuthSuccess(result.code).then(resolve).catch(reject);
-          }).catch((err: any) => {
-            reject(new Error(`钉钉H5授权失败: ${JSON.stringify(err)}`));
-          });
-        });
-        dd.error((err: any) => {
-            reject(new Error(`钉钉JSAPI配置错误: ${JSON.stringify(err)}`));
-        });
-      });
-    },
-
-    // OAuth 重定向 (钉钉环境外)
-    redirectToDingtalkOAuth() {
-      const clientId = import.meta.env.VITE_DINGTALK_APP_KEY;
-      if (!clientId) {
-        throw new Error('钉钉 AppKey 未配置!');
-      }
-      const redirectUri = encodeURIComponent(`${window.location.origin}/dingtalk-oauth`);
-      const oauthUrl = `https://login.dingtalk.com/oauth2/auth?redirect_uri=${redirectUri}&response_type=code&client_id=${clientId}&scope=openid&state=STATE&prompt=consent`;
-      window.location.href = oauthUrl;
-    },
-    
-    // 调用后端验证并设置Token
-    async handleAuthSuccess(code: string) {
+    /**
+     * 使用钉钉客户端内免登授权码登录
+     * @param code - dd.runtime.permission.requestAuthCode 获取的免登码
+     */
+    async loginWithLegacyCode(code: string) {
       try {
         const response = await apiClient.post('/auth/dingtalk-login', { code });
-        const { token, user } = response.data;
-
-        this.token = token;
-        this.user = user;
-
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+        this.setAuthData(response.data.token, response.data.user);
+        router.push('/');
       } catch (error) {
-        console.error('钉钉登录失败:', error);
-        // 可选：在这里处理登录失败的逻辑
-        throw error; // 抛出错误，以便调用者可以捕获它
+        console.error('钉钉免登登录失败:', error);
+        this.clearAuthData();
+        throw error;
       }
     },
 
-    // 从回调页面调用
-    async loginWithDingtalkCode(code: string) {
-      await this.handleAuthSuccess(code);
-      // 登录成功后，跳转到主页
-      router.push('/');
+    /**
+     * 使用钉钉 SSO 扫码或账号密码登录的授权码登录
+     * @param code - SSO 回调 URL 中的授权码
+     */
+    async loginWithSsoCode(code: string) {
+      try {
+        const response = await apiClient.post('/auth/dingtalk-sso-login', { code });
+        this.setAuthData(response.data.token, response.data.user);
+        router.push('/');
+      } catch (error) {
+        console.error('钉钉 SSO 登录失败:', error);
+        this.clearAuthData();
+        throw error;
+      }
     },
 
-    logout() {
+    /**
+     * 设置并持久化认证信息
+     */
+    setAuthData(token: string, user: User) {
+      this.token = token;
+      this.user = user;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+    },
+
+    /**
+     * 清除认证信息
+     */
+    clearAuthData() {
       this.token = null;
       this.user = null;
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      router.push('/login');
+    },
+
+    /**
+     * 登出
+     * @param redirect - 是否重定向到登录页
+     */
+    logout(redirect = true) {
+      this.clearAuthData();
+      if (redirect) {
+        router.push('/login');
+      }
     },
   },
 });
