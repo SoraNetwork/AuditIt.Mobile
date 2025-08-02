@@ -167,7 +167,9 @@ const applyFilters = () => {
 <style scoped>
 .page-wrapper {
   height: 100%;
-  overflow: hidden;
+  width: 100%;
+  position: relative; /* Creates a stacking context */
+  z-index: 0;
 }
 .fixed-content {
   background-color: #fff;
