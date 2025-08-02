@@ -293,9 +293,23 @@ const startScanner = (deviceId: string) => {
       experimentalFeatures: { useBarCodeDetectorIfSupported: true }
     });
   }
+
+  // Calculate dynamic qrbox size, capped for large screens
+  const qrboxSize = Math.min(Math.floor(window.innerWidth * 0.8), 400);
+
+  const config = {
+    fps: 30,
+    qrbox: { width: qrboxSize, height: qrboxSize },
+    videoConstraints: {
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        focusMode: 'continuous'
+    }
+  };
+
   html5QrCode.start(
     deviceId,
-    { fps: 10, qrbox: { width: 250, height: 250 } },
+    config,
     (decodedText, _decodedResult) => {
       formState.shortId = decodedText;
       stopScanner();
