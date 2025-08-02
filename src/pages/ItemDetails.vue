@@ -4,12 +4,16 @@
       <a-page-header v-if="item" :title="item.itemDefinition?.name" @back="() => router.back()" />
       
       <div v-if="!loading && item" class="details-section">
-        <a-descriptions bordered :column="1">
+        <div class="photo-container" v-if="photoFullUrl">
+          <a-image :width="'100%'" :src="photoFullUrl" alt="物品图片" />
+        </div>
+        <a-descriptions bordered :column="1" style="margin-top: 16px;">
           <a-descriptions-item label="短ID">{{ item.shortId }}</a-descriptions-item>
           <a-descriptions-item label="状态">
             <a-badge :status="getStatusColor(item.status)" :text="getStatusText(item.status)" />
           </a-descriptions-item>
           <a-descriptions-item label="仓库">{{ item.warehouse?.name }}</a-descriptions-item>
+          <a-descriptions-item label="备注">{{ item.remarks || '无' }}</a-descriptions-item>
           <a-descriptions-item label="入库日期">{{ new Date(item.entryDate).toLocaleString() }}</a-descriptions-item>
           <a-descriptions-item label="最后更新">{{ new Date(item.lastUpdated).toLocaleString() }}</a-descriptions-item>
         </a-descriptions>
@@ -50,6 +54,7 @@ import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useItemStore, type ItemStatus } from '../stores/itemStore';
 import { useAuditLogStore } from '../stores/auditLogStore';
+import apiClient from '../services/api';
 
 const route = useRoute();
 const router = useRouter();
@@ -64,6 +69,12 @@ const fixedContentRef = ref<HTMLElement | null>(null);
 const scrollableHeight = ref('300px'); // Default fallback height
 
 const item = computed(() => itemStore.items.find(i => i.id === itemId));
+
+const photoFullUrl = computed(() => {
+  if (!item.value?.photoUrl) return null;
+  const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
+  return `${baseUrl}${item.value.photoUrl}`;
+});
 
 const calculateHeight = () => {
   if (fixedContentRef.value) {
@@ -121,6 +132,10 @@ const getStatusText = (status: ItemStatus) => {
 }
 .details-section {
   padding: 0 16px 16px 16px;
+}
+.photo-container {
+  text-align: center;
+  margin-bottom: 16px;
 }
 .loading-container {
   padding-top: 50px;

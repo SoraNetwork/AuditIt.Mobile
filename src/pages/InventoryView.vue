@@ -64,6 +64,7 @@
                 </template>
                 <p><strong>可视化ID:</strong> {{ item.shortId }}</p>
                 <p><strong>所在仓库:</strong> {{ item.warehouseName }}</p>
+                <p v-if="item.remarks"><strong>备注:</strong> {{ item.remarks }}</p>
                 <p class="item-id"><strong>UUID:</strong> {{ item.id }}</p>
               </a-card>
             </router-link>

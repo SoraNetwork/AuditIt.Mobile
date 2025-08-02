@@ -12,6 +12,8 @@ export interface Item {
   status: ItemStatus;
   lastUpdated: string;
   entryDate: string;
+  remarks?: string;
+  photoUrl?: string;
   itemDefinition?: { id: number; name: string; };
   warehouse?: { id: number; name: string; };
 }
