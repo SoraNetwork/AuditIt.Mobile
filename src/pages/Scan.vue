@@ -7,6 +7,10 @@
         <a-radio-button value="manual" style="width: 50%; text-align: center;">手动输入</a-radio-button>
       </a-radio-group>
 
+      <a-form-item label="连续盘点模式" v-if="selectedItem?.status !== 'Disposed'">
+        <a-switch v-model:checked="continuousCheck" />
+      </a-form-item>
+
       <!-- Scan Mode -->
       <div v-if="inputMode === 'scan'">
         <div v-show="!selectedItem && !scanError">
@@ -70,7 +74,7 @@
           <div class="action-buttons">
             <h3>待操作列表</h3>
             <a-button v-if="selectedItem.status === 'InStock'" @click="handleAction('outbound')" block>借出</a-button>
-            <a-button v-if="selectedItem.status === 'LoanedOut'" @click="handleAction('return')" block>归还</a-button>
+            <a-button v-if="selectedItem.status === 'LoanedOut' || selectedItem.status === 'SuspectedMissing'" @click="handleAction('return')" block>归还</a-button>
             <a-button @click="handleAction('check')" block>盘点</a-button>
             <a-button v-if="selectedItem.status !== 'Disposed'" @click="handleAction('dispose')" danger block>处置</a-button>
             <a-divider />
@@ -83,10 +87,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, h } from 'vue';
 import { Html5Qrcode, type CameraDevice } from 'html5-qrcode';
 import { useItemStore, type Item, type ItemStatus } from '../stores/itemStore';
-import { message } from 'ant-design-vue';
+import { message, Modal, Input } from 'ant-design-vue';
 
 const itemStore = useItemStore();
 let html5Qrcode: Html5Qrcode | null = null;
@@ -97,6 +101,7 @@ const isScanning = ref(false);
 const selectedItem = ref<Item | null>(null);
 const scanError = ref<string | null>(null);
 const readerRef = ref<HTMLElement | null>(null);
+const continuousCheck = ref(false);
 
 // Camera state
 const cameras = ref<CameraDevice[]>([]);
@@ -188,12 +193,48 @@ const fetchItemByShortId = async (shortId: string) => {
 
 const handleAction = async (action: 'outbound' | 'return' | 'check' | 'dispose') => {
   if (!selectedItem.value) return;
-  try {
-    await itemStore.updateItemStatus(selectedItem.value.id, action);
-    message.success(`操作成功: ${action}`);
-    await fetchItemByShortId(selectedItem.value.shortId); // Refresh data
-  } catch (error) {
-    message.error('操作失败');
+
+  const performAction = async (destination?: string) => {
+    if (!selectedItem.value) return;
+    try {
+      await itemStore.updateItemStatus(selectedItem.value.id, action, destination);
+      message.success(`操作成功: ${action}`);
+
+      if (action === 'check' && continuousCheck.value) {
+        reset();
+        if (inputMode.value === 'scan' && selectedCameraId.value) {
+          startScan(selectedCameraId.value);
+        }
+      } else {
+        await fetchItemByShortId(selectedItem.value.shortId); // Refresh data
+      }
+    } catch (error) {
+      message.error('操作失败');
+    }
+  };
+
+  if (action === 'outbound' || action === 'dispose') {
+    let destination: string | undefined;
+    const actionText = action === 'outbound' ? '借出' : '处置';
+    Modal.confirm({
+      title: `确认${actionText}`,
+      content: h('div', [
+        h('p', `请输入目的地或原因：`),
+        h(Input, {
+          placeholder: '例如：借给张三，或处置原因',
+          onChange: (e) => { destination = e.target.value; },
+        }),
+      ]),
+      onOk: () => {
+        if (!destination) {
+          message.error('目的地/原因不能为空');
+          return Promise.reject();
+        }
+        performAction(destination);
+      },
+    });
+  } else {
+    performAction();
   }
 };
 
@@ -232,6 +273,7 @@ const getStatusColor = (status: ItemStatus) => {
     case 'InStock': return 'success';
     case 'LoanedOut': return 'warning';
     case 'Disposed': return 'error';
+    case 'SuspectedMissing': return 'purple';
     default: return 'default';
   }
 };
@@ -240,6 +282,7 @@ const getStatusText = (status: ItemStatus) => {
     case 'InStock': return '在库';
     case 'LoanedOut': return '已借出';
     case 'Disposed': return '已处置';
+    case 'SuspectedMissing': return '疑似丢失';
     default: return '未知';
   }
 };

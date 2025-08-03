@@ -5,13 +5,14 @@ import apiClient from '../services/api';
 export interface AuditLog {
   id: number;
   timestamp: string;
-  action: 'Inbound' | 'Outbound' | 'Check' | 'Return' | 'Dispose';
+  action: string;
   itemId: string; // Changed to string
   itemShortId: string;
   itemName: string;
   warehouseId: number;
   warehouseName: string;
   user: string;
+  destination?: string;
 }
 
 interface AuditLogState {

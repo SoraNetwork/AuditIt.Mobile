@@ -35,6 +35,12 @@ const routes = [
         meta: { title: '物品详情' },
       },
       {
+        path: 'items/edit/:id',
+        name: 'item-edit',
+        component: () => import('../pages/ItemEdit.vue'),
+        meta: { title: '编辑物品' },
+      },
+      {
         path: 'warehouses',
         name: 'warehouses',
         component: () => import('../pages/WarehouseList.vue'),

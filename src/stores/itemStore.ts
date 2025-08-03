@@ -1,11 +1,10 @@
 import { defineStore } from 'pinia';
 import apiClient from '../services/api';
-import { v4 as uuidv4 } from 'uuid';
 
-export type ItemStatus = 'InStock' | 'LoanedOut' | 'Disposed';
+export type ItemStatus = 'InStock' | 'LoanedOut' | 'Disposed' | 'SuspectedMissing';
 
 export interface Item {
-  id: string; // Changed to string for UUID
+  id: string;
   shortId: string;
   itemDefinitionId: number;
   warehouseId: number;
@@ -14,31 +13,33 @@ export interface Item {
   entryDate: string;
   remarks?: string;
   photoUrl?: string;
+  currentDestination?: string;
   itemDefinition?: { id: number; name: string; };
   warehouse?: { id: number; name: string; };
 }
 
-export interface PreInboundItem {
-  id: string;
-  shortId: string;
+interface CreateItemPayload {
   itemDefinitionId: number;
+  warehouseId: number;
+  shortId?: string;
+  remarks?: string;
+  photo?: File | null;
+}
+
+interface UpdateItemPayload {
+  remarks?: string;
+  photo?: File | null;
 }
 
 interface ItemState {
   items: Item[];
-  preInboundItems: PreInboundItem[];
   loading: boolean;
   error: string | null;
 }
 
-const generateShortId = (id: string): string => {
-  return id.substring(0, 8).toUpperCase();
-};
-
 export const useItemStore = defineStore('item', {
   state: (): ItemState => ({
     items: [],
-    preInboundItems: [],
     loading: false,
     error: null,
   }),
@@ -62,48 +63,52 @@ export const useItemStore = defineStore('item', {
       }
     },
 
-    preInbound(itemDefinitionId: number, quantity: number) {
-      this.preInboundItems = [];
-      for (let i = 0; i < quantity; i++) {
-        const newId = uuidv4();
-        this.preInboundItems.push({
-          id: newId, 
-          shortId: generateShortId(newId),
-          itemDefinitionId: itemDefinitionId,
-        });
-      }
-    },
-
-    async confirmInbound(warehouseId: number) {
-      if (this.preInboundItems.length === 0) return;
+    async createItem(payload: CreateItemPayload): Promise<Item> {
       this.loading = true;
       this.error = null;
       try {
-        const inboundPromises = this.preInboundItems.map(item => 
-          apiClient.post<Item>('/items/inbound', { 
-            itemDefinitionId: item.itemDefinitionId, 
-            warehouseId: warehouseId 
-          })
-        );
-        const responses = await Promise.all(inboundPromises);
-        
-        const newItems = responses.map(res => res.data);
-        this.items.unshift(...newItems);
+        const formData = new FormData();
+        formData.append('itemDefinitionId', String(payload.itemDefinitionId));
+        formData.append('warehouseId', String(payload.warehouseId));
+        if (payload.shortId) formData.append('shortId', payload.shortId);
+        if (payload.remarks) formData.append('remarks', payload.remarks);
+        if (payload.photo) formData.append('photo', payload.photo);
 
-        this.preInboundItems = [];
+        const response = await apiClient.post<Item>('/items/create', formData);
+        this.items.unshift(response.data);
+        return response.data;
       } catch (err: any) {
-        this.error = '确认入库失败: ' + (err.response?.data?.message || err.message);
+        this.error = '创建物品失败: ' + (err.response?.data?.message || err.message);
         throw err;
       } finally {
         this.loading = false;
       }
     },
 
-    async updateItemStatus(itemId: string, action: 'outbound' | 'check' | 'return' | 'dispose') {
+    async updateItem(itemId: string, payload: UpdateItemPayload) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const formData = new FormData();
+        if (payload.remarks) formData.append('remarks', payload.remarks);
+        if (payload.photo) formData.append('photo', payload.photo);
+
+        await apiClient.put(`/items/${itemId}`, formData);
+        // Refetch the single item to update the list
+        await this.fetchItems({ id: itemId });
+      } catch (err: any) {
+        this.error = '更新物品失败: ' + (err.response?.data?.message || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async updateItemStatus(itemId: string, action: 'outbound' | 'check' | 'return' | 'dispose', destination?: string) {
         this.loading = true;
         this.error = null;
         try {
-            const response = await apiClient.put<Item>(`/items/${itemId}/${action}`);
+            const response = await apiClient.put<Item>(`/items/${itemId}/${action}`, { destination });
             const index = this.items.findIndex(item => item.id === itemId);
             if (index !== -1) {
               this.items[index] = response.data;

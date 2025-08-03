@@ -1,7 +1,11 @@
 <template>
   <div class="page-wrapper">
     <div class="fixed-content" ref="fixedContentRef">
-      <a-page-header v-if="item" :title="item.itemDefinition?.name" @back="() => router.back()" />
+      <a-page-header v-if="item" :title="item.itemDefinition?.name" @back="() => router.back()">
+        <template #extra>
+          <a-button @click="() => router.push({ name: 'item-edit', params: { id: item?.id } })">编辑</a-button>
+        </template>
+      </a-page-header>
       
       <div v-if="!loading && item" class="details-section">
         <div class="photo-container" v-if="photoFullUrl">
@@ -13,6 +17,9 @@
             <a-badge :status="getStatusColor(item.status)" :text="getStatusText(item.status)" />
           </a-descriptions-item>
           <a-descriptions-item label="仓库">{{ item.warehouse?.name }}</a-descriptions-item>
+          <a-descriptions-item label="当前去向" v-if="item.status === 'LoanedOut' || item.status === 'Disposed'">
+            {{ item.currentDestination || '无' }}
+          </a-descriptions-item>
           <a-descriptions-item label="备注">{{ item.remarks || '无' }}</a-descriptions-item>
           <a-descriptions-item label="入库日期">{{ formatDateTime(item.entryDate) }}</a-descriptions-item>
           <a-descriptions-item label="最后更新">{{ formatDateTime(item.lastUpdated) }}</a-descriptions-item>
