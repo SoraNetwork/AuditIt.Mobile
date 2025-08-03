@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia';
 import apiClient from '../services/api';
 import router from '../router';
+import { useUiStore } from './uiStore';
 
 interface User {
   id: string;
   name: string;
   dingTalkId: string;
+  corpId: string;
 }
 
 interface AuthState {
@@ -34,7 +36,7 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         console.error('钉钉免登登录失败:', error);
         this.clearAuthData();
-        throw error;
+        throw new Error("登录失败，请尝试重新登陆");
       }
     },
 
@@ -50,7 +52,7 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         console.error('钉钉 SSO 登录失败:', error);
         this.clearAuthData();
-        throw error;
+        throw new Error("登录失败，请尝试重新登陆");
       }
     },
 
@@ -76,13 +78,14 @@ export const useAuthStore = defineStore('auth', {
 
     /**
      * 登出
-     * @param redirect - 是否重定向到登录页
      */
-    logout(redirect = true) {
+    logout(message?: string) {
+      const uiStore = useUiStore();
       this.clearAuthData();
-      if (redirect) {
-        router.push('/login');
+      if (message) {
+        uiStore.showNotification(message, 'error');
       }
+      router.push('/login');
     },
   },
 });

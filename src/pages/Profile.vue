@@ -7,7 +7,8 @@
           <template #icon><UserOutlined /></template>
         </a-avatar>
         <h2 class="user-name">{{ authStore.user?.name || '模拟用户' }}</h2>
-        <p class="user-id">CorpID: {{ corpId }}</p>
+        <p class="user-id">DingTalk ID: {{ authStore.user?.dingTalkId }}</p>
+        <p class="user-id">CorpID: {{ authStore.user?.corpId }}</p>
       </a-card>
 
       <a-menu v-model:selectedKeys="selectedKeys" class="action-menu">
@@ -15,7 +16,10 @@
           <template #icon><file-search-outlined /></template>
           审计日志中心
         </a-menu-item>
-        <!-- Can add more menu items here -->
+        <a-menu-item key="version">
+           <template #icon><info-circle-outlined /></template>
+          <span>版本: {{ gitSha }}</span>
+        </a-menu-item>
       </a-menu>
 
       <div class="actions">
@@ -30,14 +34,15 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { UserOutlined, FileSearchOutlined } from '@ant-design/icons-vue';
+import { UserOutlined, FileSearchOutlined, InfoCircleOutlined } from '@ant-design/icons-vue';
 import { useAuthStore } from '../stores/authStore';
 import { Modal } from 'ant-design-vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const corpId = import.meta.env.VITE_DINGTALK_CORP_ID;
 const selectedKeys = ref([]);
+const gitSha = (import.meta.env.VITE_GIT_SHA || 'N/A').substring(0, 7);
+
 
 const handleLogout = () => {
   Modal.confirm({

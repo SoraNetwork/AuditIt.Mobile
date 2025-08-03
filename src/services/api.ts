@@ -9,7 +9,8 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
+  const authStore = useAuthStore();
+  const token = authStore.token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -27,7 +28,10 @@ apiClient.interceptors.response.use(
   error => {
     if (error.response && error.response.status === 401) {
       const authStore = useAuthStore();
-      authStore.logout();
+      // Check if the user was actually authenticated before logging out
+      if (authStore.isAuthenticated) {
+        authStore.logout('会话已过期，请重新登录。');
+      }
     }
     return Promise.reject(error);
   }
