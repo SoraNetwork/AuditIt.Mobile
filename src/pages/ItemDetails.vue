@@ -80,7 +80,7 @@ const item = computed(() => itemStore.items.find(i => i.id === itemId));
 
 const photoFullUrl = computed(() => {
   if (!item.value?.photoUrl) return null;
-  const baseUrl = (apiClient.defaults.baseURL || '').replace('/api', '');
+  const baseUrl = (apiClient.defaults.baseURL || '').replace(/\/api$/, '');
   return `${baseUrl}${item.value.photoUrl}`;
 });
 

@@ -58,7 +58,6 @@
           list-type="picture-card"
           :before-upload="() => false"
           @change="handleFileChange"
-          @preview="handlePreview"
         >
           <div v-if="!fileList || fileList.length < 1">
             <plus-outlined />
@@ -87,7 +86,7 @@
             <a-button
               type="primary"
               @click="handleSaveAndExport"
-              :loading="isSaving"
+              :loading="isSaving || isCompressing"
               :disabled="inboundList.length === 0"
             >
               保存并导出
@@ -107,15 +106,14 @@
                 <span class="description-text">条码: {{ item.shortId }}</span>
                 <span class="description-text" v-if="item.remarks">备注: {{ item.remarks }}</span>
               </template>
+               <template #avatar>
+                <a-image v-if="item.photoPreview" :width="50" :src="item.photoPreview" />
+              </template>
             </a-list-item-meta>
           </a-list-item>
         </template>
       </a-list>
     </div>
-
-    <a-modal :open="previewVisible" :title="previewTitle" :footer="null" @cancel="handleCancelPreview">
-      <img alt="example" style="width: 100%" :src="previewImage" />
-    </a-modal>
     
     <a-drawer title="新建物品定义" :width="'90%'" :open="isNewItemDefVisible" @close="isNewItemDefVisible = false">
       <ItemDefinitionForm ref="newItemDefFormRef" @submitted="handleNewItemDefSubmitted"/>
@@ -135,6 +133,7 @@ import apiClient from '../services/api';
 import ItemDefinitionForm from './ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
 import { v4 as uuidv4 } from 'uuid';
+import imageCompression from 'browser-image-compression';
 
 // Stores & Router
 const router = useRouter();
@@ -152,9 +151,11 @@ const formState = reactive({
   warehouseId: null as number | null,
   remarks: '',
   photo: null as File | null,
+  photoPreview: null as string | null,
 });
 const fileList = ref<UploadProps['fileList']>([]);
 const isSaving = ref(false);
+const isCompressing = ref(false);
 
 // Scanner State
 const readerRef = ref<HTMLElement | null>(null);
@@ -164,9 +165,6 @@ const cameras = ref<CameraDevice[]>([]);
 const selectedCameraId = ref<string | null>(null);
 
 // Modal/Drawer State
-const previewVisible = ref(false);
-const previewImage = ref('');
-const previewTitle = ref('');
 const isNewItemDefVisible = ref(false);
 const newItemDefFormRef = ref<InstanceType<typeof ItemDefinitionForm> | null>(null);
 
@@ -182,36 +180,47 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopScanner();
+  // Revoke any object URLs to prevent memory leaks
+  inboundList.value.forEach(item => {
+    if (item.photoPreview) {
+      URL.revokeObjectURL(item.photoPreview);
+    }
+  });
 });
 
-const handleFileChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
-  fileList.value = newFileList;
-  if (newFileList.length > 0 && newFileList[0].originFileObj) {
-    formState.photo = newFileList[0].originFileObj as File;
+const handleFileChange = async (info: any) => {
+  fileList.value = info.fileList.slice(-1);
+  
+  if (formState.photoPreview) {
+      URL.revokeObjectURL(formState.photoPreview);
+      formState.photoPreview = null;
+  }
+
+  if (fileList.value && fileList.value.length > 0 && fileList.value[0].originFileObj) {
+    isCompressing.value = true;
+    message.loading({ content: '正在压缩图片...', key: 'compressing' });
+    try {
+      const file = fileList.value[0].originFileObj;
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+      const compressedFile = await imageCompression(file, options);
+      formState.photo = compressedFile;
+      formState.photoPreview = URL.createObjectURL(compressedFile);
+      message.success({ content: '图片压缩成功!', key: 'compressing', duration: 2 });
+    } catch (error) {
+      message.error({ content: '图片压缩失败!', key: 'compressing', duration: 2 });
+      console.error(error);
+      formState.photo = null;
+      fileList.value = [];
+    } finally {
+      isCompressing.value = false;
+    }
   } else {
     formState.photo = null;
   }
-};
-
-const handlePreview = async (file: any) => {
-  if (!file.url && !file.preview) {
-    file.preview = await getBase64(file.originFileObj);
-  }
-  previewImage.value = file.url || file.preview;
-  previewVisible.value = true;
-  previewTitle.value = file.name || file.url.substring(file.url.lastIndexOf('/') + 1);
-};
-
-const getBase64 = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
-  });
-
-const handleCancelPreview = () => {
-  previewVisible.value = false;
 };
 
 const generateId = () => {
@@ -223,11 +232,12 @@ const generateId = () => {
 const resetForm = () => {
   formState.id = null;
   formState.shortId = '';
-  // Keep warehouse and item definition for convenience
-  // formState.itemDefinitionId = null;
-  // formState.warehouseId = null;
   formState.remarks = '';
+  if (formState.photoPreview) {
+    URL.revokeObjectURL(formState.photoPreview);
+  }
   formState.photo = null;
+  formState.photoPreview = null;
   fileList.value = [];
 };
 
@@ -242,6 +252,10 @@ const handleAddItemToList = () => {
 };
 
 const handleRemoveFromList = (index: number) => {
+  const item = inboundList.value[index];
+  if (item.photoPreview) {
+    URL.revokeObjectURL(item.photoPreview);
+  }
   inboundList.value.splice(index, 1);
 };
 
@@ -288,7 +302,7 @@ const handleNewItemDefSubmitted = (newItem: any) => {
   formState.itemDefinitionId = newItem.id;
 };
 
-// --- Scanner Logic (Copied from Scan.vue for consistency) ---
+// --- Scanner Logic ---
 const initScanner = async () => {
   if (!readerRef.value) return;
   if (!html5QrCode) {

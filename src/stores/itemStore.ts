@@ -29,6 +29,7 @@ interface CreateItemPayload {
 interface UpdateItemPayload {
   remarks?: string;
   photo?: File | null;
+  deletePhoto?: boolean;
 }
 
 interface ItemState {
@@ -90,12 +91,20 @@ export const useItemStore = defineStore('item', {
       this.error = null;
       try {
         const formData = new FormData();
-        if (payload.remarks) formData.append('remarks', payload.remarks);
-        if (payload.photo) formData.append('photo', payload.photo);
+        // Always send remarks, even if empty, to allow clearing it.
+        formData.append('remarks', payload.remarks || '');
+
+        if (payload.photo) {
+          formData.append('photo', payload.photo);
+        } else if (payload.deletePhoto) {
+          formData.append('deletePhoto', 'true');
+        }
 
         await apiClient.put(`/items/${itemId}`, formData);
-        // Refetch the single item to update the list
+        
+        // Refetch the single item to get the latest state from server (e.g., new photoUrl)
         await this.fetchItems({ id: itemId });
+
       } catch (err: any) {
         this.error = '更新物品失败: ' + (err.response?.data?.message || err.message);
         throw err;

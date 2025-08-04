@@ -12,6 +12,7 @@
     "@ant-design/icons-vue": "^7.0.1",
     "ant-design-vue": "^4.2.6",
     "axios": "^1.11.0",
+    "browser-image-compression": "^2.0.2",
     "chart.js": "^4.5.0",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.13",
