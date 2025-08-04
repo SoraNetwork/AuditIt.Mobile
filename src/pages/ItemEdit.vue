@@ -4,6 +4,9 @@
     <div class="page-container">
       <a-card v-if="!itemStore.loading && item">
         <a-form :model="formState" @finish="handleSave" layout="vertical">
+          <a-form-item label="去向 (可选)">
+            <a-input v-model:value="formState.currentDestination" />
+          </a-form-item>
           <a-form-item label="备注">
             <a-textarea v-model:value="formState.remarks" :rows="4" />
           </a-form-item>
@@ -54,8 +57,10 @@ const router = useRouter();
 const itemStore = useItemStore();
 
 const item = ref<Item | null>(null);
-const formState = reactive<{ remarks: string; photo?: File }>({
+const formState = reactive({
   remarks: '',
+  currentDestination: '',
+  photo: undefined as File | undefined,
 });
 const fileList = ref<UploadProps['fileList']>([]);
 const isPhotoDeleted = ref(false);
@@ -78,6 +83,7 @@ onMounted(async () => {
   if (foundItem) {
     item.value = foundItem;
     formState.remarks = foundItem.remarks || '';
+    formState.currentDestination = foundItem.currentDestination || '';
   } else {
     message.error('未找到物品');
     router.back();
@@ -127,6 +133,7 @@ const handleSave = async () => {
   try {
     await itemStore.updateItem(item.value.id, {
       remarks: formState.remarks,
+      currentDestination: formState.currentDestination,
       photo: formState.photo,
       deletePhoto: isPhotoDeleted.value,
     });

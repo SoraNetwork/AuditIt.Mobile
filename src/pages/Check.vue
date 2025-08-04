@@ -1,111 +1,135 @@
 <template>
   <div>
-    <a-page-header title="库存盘点" @back="router.back()" />
+    <a-page-header title="连续盘点" @back="router.back()" />
     <div class="page-container">
-      <a-form layout="vertical" :model="filterState">
-        <a-form-item label="选择仓库">
-          <a-select v-model:value="filterState.warehouseId" placeholder="请选择仓库" @change="loadInventory" allow-clear>
-            <a-select-option v-for="wh in warehouseStore.warehouses" :key="wh.id" :value="wh.id">{{ wh.name }}</a-select-option>
-          </a-select>
+      <a-form @submit.prevent="handleCheck">
+        <a-form-item label="扫描或输入Short ID">
+          <a-input
+            ref="shortIdInputRef"
+            v-model:value="shortId"
+            placeholder="请扫描或输入ID后按回车"
+            @press-enter="handleCheck"
+            :disabled="itemStore.loading"
+            allow-clear
+          />
         </a-form-item>
       </a-form>
 
-      <a-list
-        :data-source="inventoryData"
-        :loading="itemStore.loading"
-        item-layout="vertical"
-      >
-        <template #renderItem="{ item }">
-          <a-list-item>
-            <a-card :title="item.name">
-              <a-row :gutter="16">
-                <a-col :span="12">
-                  <a-statistic title="账面数量" :value="item.bookedQuantity" />
-                </a-col>
-                <a-col :span="12">
-                   <a-statistic title="差异" :value="item.difference">
-                     <template #formatter="{ value }">
-                       <span :style="{ color: value !== 0 ? '#ff4d4f' : '#52c41a' }">{{ value }}</span>
-                     </template>
-                   </a-statistic>
-                </a-col>
-              </a-row>
-              <a-divider style="margin: 12px 0;" />
-              <div class="input-area">
-                <span>实盘数量:</span>
-                <a-input-number v-model:value="item.actualQuantity" :min="0" />
-              </div>
-            </a-card>
-          </a-list-item>
-        </template>
-      </a-list>
+      <a-divider>最近盘点日志</a-divider>
+
+      <div class="log-list-container">
+        <a-list :data-source="checkLog" item-layout="horizontal" :locale="{ emptyText: '暂无盘点记录' }">
+          <template #renderItem="{ item }">
+            <a-list-item>
+              <a-list-item-meta>
+                <template #title>
+                  <span :class="item.status === 'success' ? 'log-success' : 'log-error'">
+                    {{ item.message }}
+                  </span>
+                </template>
+                <template #description>
+                  <span>ID: {{ item.shortId }} | 时间: {{ item.timestamp }}</span>
+                </template>
+              </a-list-item-meta>
+            </a-list-item>
+          </template>
+        </a-list>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { useWarehouseStore } from '../stores/warehouseStore';
 import { useItemStore } from '../stores/itemStore';
-import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
+import { message } from 'ant-design-vue';
+import { formatDateTime } from '../utils/formatters';
 
-interface InventoryItem {
-  itemDefinitionId: string;
-  name: string;
-  bookedQuantity: number;
-  actualQuantity: number;
-  difference: number;
+interface LogEntry {
+  shortId: string;
+  message: string;
+  status: 'success' | 'error';
+  timestamp: string;
 }
 
 const router = useRouter();
-const warehouseStore = useWarehouseStore();
 const itemStore = useItemStore();
-const itemDefStore = useItemDefinitionStore();
 
-const filterState = reactive({ warehouseId: undefined });
-const inventoryData = ref<InventoryItem[]>([]);
-
-const itemDefMap = computed(() => {
-  return itemDefStore.itemDefinitions.reduce((map, def) => {
-    map[def.id] = def;
-    return map;
-  }, {} as Record<string, { name: string }>);
-});
+const shortId = ref('');
+const shortIdInputRef = ref<HTMLInputElement | null>(null);
+const checkLog = ref<LogEntry[]>([]);
 
 onMounted(() => {
-  warehouseStore.fetchWarehouses();
-  itemDefStore.fetchItemDefinitions();
+  focusInput();
 });
 
-const loadInventory = async () => {
-  if (!filterState.warehouseId) {
-    inventoryData.value = [];
+const focusInput = () => {
+  nextTick(() => {
+    shortIdInputRef.value?.focus();
+  });
+};
+
+const addLog = (entry: Omit<LogEntry, 'timestamp'>) => {
+  checkLog.value.unshift({
+    ...entry,
+    timestamp: formatDateTime(new Date().toISOString()),
+  });
+  // Keep the log list from growing too large
+  if (checkLog.value.length > 50) {
+    checkLog.value.pop();
+  }
+};
+
+const handleCheck = async () => {
+  if (!shortId.value || itemStore.loading) {
     return;
   }
-  await itemStore.fetchItems(filterState.warehouseId);
-  
-  const aggregated = itemStore.items.reduce((acc, item) => {
-    acc[item.itemDefinitionId] = (acc[item.itemDefinitionId] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
 
-  inventoryData.value = Object.keys(aggregated).map(defId => {
-    const bookedQuantity = aggregated[defId];
-    return reactive({
-      itemDefinitionId: defId,
-      name: itemDefMap.value[defId]?.name || '未知物品',
-      bookedQuantity: bookedQuantity,
-      actualQuantity: bookedQuantity,
-      get difference() {
-        return this.actualQuantity - this.bookedQuantity;
-      }
-    });
-  });
+  const currentShortId = shortId.value.trim();
+  shortId.value = ''; // Clear input immediately for next scan
+
+  try {
+    // Fetch item by shortId to get its full Guid
+    await itemStore.fetchItems({ shortId: currentShortId });
+    const item = itemStore.items.find(i => i.shortId === currentShortId);
+
+    if (!item) {
+      const errorMessage = `物品 ${currentShortId} 未找到。`;
+      message.error(errorMessage, 2);
+      addLog({ shortId: currentShortId, message: errorMessage, status: 'error' });
+      focusInput();
+      return;
+    }
+
+    // Perform the 'check' operation
+    await itemStore.updateItemStatus(item.id, 'check');
+    const successMessage = `物品 ${item.itemDefinition?.name || currentShortId} 已盘点。`;
+    message.success(successMessage, 2);
+    addLog({ shortId: currentShortId, message: successMessage, status: 'success' });
+
+  } catch (error: any) {
+    const errorMessage = `盘点 ${currentShortId} 失败: ${error.message || '未知错误'}`;
+    message.error(errorMessage, 3);
+    addLog({ shortId: currentShortId, message: errorMessage, status: 'error' });
+  } finally {
+    focusInput();
+  }
 };
 </script>
 
 <style scoped>
-.page-container { padding: 16px; }
-.input-area { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+.page-container {
+  padding: 16px;
+}
+.log-list-container {
+  max-height: calc(100vh - 250px); /* Adjust height as needed */
+  overflow-y: auto;
+}
+.log-success {
+  color: #52c41a;
+}
+.log-error {
+  color: #ff4d4f;
+}
 </style>
