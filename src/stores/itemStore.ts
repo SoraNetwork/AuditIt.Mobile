@@ -119,6 +119,25 @@ export const useItemStore = defineStore('item', {
         } finally {
             this.loading = false;
         }
+    },
+
+    async updateStatusBatch(itemIds: string[], status: ItemStatus) {
+      this.loading = true;
+      this.error = null;
+      try {
+        await apiClient.post('/items/update-status/batch', { itemIds, status });
+        this.items = this.items.map(item => {
+          if (itemIds.includes(item.id)) {
+            return { ...item, status };
+          }
+          return item;
+        });
+      } catch (err: any) {
+        this.error = `批量更新状态失败: ` + (err.response?.data?.message || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
     }
   },
 });

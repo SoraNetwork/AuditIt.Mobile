@@ -130,6 +130,12 @@ const routes = [
         component: () => import('../pages/AuditLogView.vue'),
         meta: { title: '审计日志' },
       },
+      {
+        path: 'check-analysis',
+        name: 'check-analysis',
+        component: () => import('../pages/CheckAnalysis.vue'),
+        meta: { title: '盘点分析' },
+      },
     ],
   },
 ];

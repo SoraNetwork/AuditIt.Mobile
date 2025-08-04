@@ -39,10 +39,12 @@
         <a-form>
           <a-form-item label="通过物品ID查找">
             <a-input-search
+              ref="manualInputRef"
               v-model:value="manualId"
               placeholder="输入物品短ID"
               enter-button="查找"
               @search="onManualSearch"
+              @keydown.enter.prevent="onManualSearch(manualId)"
             />
           </a-form-item>
         </a-form>
@@ -87,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, h } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, h, nextTick } from 'vue';
 import { Html5Qrcode, type CameraDevice } from 'html5-qrcode';
 import { useItemStore, type Item, type ItemStatus } from '../stores/itemStore';
 import { message, Modal, Input } from 'ant-design-vue';
@@ -101,6 +103,7 @@ const isScanning = ref(false);
 const selectedItem = ref<Item | null>(null);
 const scanError = ref<string | null>(null);
 const readerRef = ref<HTMLElement | null>(null);
+const manualInputRef = ref<any>(null);
 const continuousCheck = ref(false);
 
 // Camera state
@@ -204,6 +207,9 @@ const handleAction = async (action: 'outbound' | 'return' | 'check' | 'dispose')
         reset();
         if (inputMode.value === 'scan' && selectedCameraId.value) {
           startScan(selectedCameraId.value);
+        } else if (inputMode.value === 'manual') {
+          await nextTick(); // Wait for the DOM to update
+          manualInputRef.value?.focus();
         }
       } else {
         await fetchItemByShortId(selectedItem.value.shortId); // Refresh data
@@ -253,6 +259,8 @@ watch(inputMode, async (newMode) => {
     }
   } else {
     await stopScan();
+    await nextTick();
+    manualInputRef.value?.focus();
   }
 });
 

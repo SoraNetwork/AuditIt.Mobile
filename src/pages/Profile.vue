@@ -16,6 +16,10 @@
           <template #icon><file-search-outlined /></template>
           审计日志中心
         </a-menu-item>
+        <a-menu-item key="check-analysis" @click="router.push('/check-analysis')">
+          <template #icon><line-chart-outlined /></template>
+          盘点分析
+        </a-menu-item>
         <a-menu-item key="version">
            <template #icon><info-circle-outlined /></template>
           <span>版本: {{ gitSha }}</span>
@@ -34,7 +38,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { UserOutlined, FileSearchOutlined, InfoCircleOutlined } from '@ant-design/icons-vue';
+import { UserOutlined, FileSearchOutlined, InfoCircleOutlined, LineChartOutlined } from '@ant-design/icons-vue';
 import { useAuthStore } from '../stores/authStore';
 import { Modal } from 'ant-design-vue';
 

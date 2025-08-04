@@ -13,9 +13,9 @@
       </a-form-item>
 
       <div v-show="isScannerActive">
-        <div id="qr-code-reader"></div>
+        <div id="qr-code-reader" ref="readerRef"></div>
         <a-select
-          v-if="cameras.length > 1"
+          v-if="cameras.length > 1 && isScannerActive"
           v-model:value="selectedCameraId"
           placeholder="选择摄像头"
           style="margin-top: 8px; width: 100%"
@@ -130,7 +130,7 @@ import { useItemDefinitionStore } from '../stores/itemDefinitionStore';
 import { useWarehouseStore } from '../stores/warehouseStore';
 import { message, type UploadProps } from 'ant-design-vue';
 import { PlusOutlined } from '@ant-design/icons-vue';
-import { Html5Qrcode, Html5QrcodeScannerState, type CameraDevice } from 'html5-qrcode';
+import { Html5Qrcode, type CameraDevice } from 'html5-qrcode';
 import apiClient from '../services/api';
 import ItemDefinitionForm from './ItemDefinitionForm.vue';
 import * as XLSX from 'xlsx';
@@ -146,7 +146,7 @@ const inboundList = ref<any[]>([]);
 
 // Form State
 const formState = reactive({
-  id: null as string | null, // To hold the full UUID if generated client-side
+  id: null as string | null,
   shortId: '',
   itemDefinitionId: null as number | null,
   warehouseId: null as number | null,
@@ -157,6 +157,7 @@ const fileList = ref<UploadProps['fileList']>([]);
 const isSaving = ref(false);
 
 // Scanner State
+const readerRef = ref<HTMLElement | null>(null);
 const isScannerActive = ref(false);
 let html5QrCode: Html5Qrcode | null = null;
 const cameras = ref<CameraDevice[]>([]);
@@ -176,6 +177,7 @@ const isFormValid = computed(() => formState.shortId && formState.itemDefinition
 onMounted(() => {
   itemDefinitionStore.fetchItemDefinitions();
   warehouseStore.fetchWarehouses();
+  initScanner();
 });
 
 onUnmounted(() => {
@@ -221,8 +223,9 @@ const generateId = () => {
 const resetForm = () => {
   formState.id = null;
   formState.shortId = '';
-  formState.itemDefinitionId = null;
-  formState.warehouseId = null;
+  // Keep warehouse and item definition for convenience
+  // formState.itemDefinitionId = null;
+  // formState.warehouseId = null;
   formState.remarks = '';
   formState.photo = null;
   fileList.value = [];
@@ -285,89 +288,79 @@ const handleNewItemDefSubmitted = (newItem: any) => {
   formState.itemDefinitionId = newItem.id;
 };
 
-// --- Scanner Logic ---
-const startScanner = (deviceId: string) => {
+// --- Scanner Logic (Copied from Scan.vue for consistency) ---
+const initScanner = async () => {
+  if (!readerRef.value) return;
   if (!html5QrCode) {
-    html5QrCode = new Html5Qrcode('qr-code-reader', {
-      verbose: false,
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    });
+    html5QrCode = new Html5Qrcode(readerRef.value.id, { verbose: false });
   }
 
-  // Calculate dynamic qrbox size, capped for large screens
-  const qrboxSize = Math.min(Math.floor(window.innerWidth * 0.8), 400);
-
-  const config = {
-    fps: 30,
-    qrbox: { width: qrboxSize, height: qrboxSize },
-    videoConstraints: {
-        width: { ideal: 640 },
-        height: { ideal: 480 },
-        focusMode: 'continuous'
+  if (cameras.value.length === 0) {
+    try {
+      const availableCameras = await Html5Qrcode.getCameras();
+      if (availableCameras && availableCameras.length) {
+        cameras.value = availableCameras;
+        let preferredCamera = availableCameras.find(c => c.label.toLowerCase().includes('back')) || 
+                              availableCameras.find(c => c.label.toLowerCase().includes('后置')) || 
+                              availableCameras.find(c => c.label.toLowerCase().includes('rear')) ||
+                              availableCameras[0];
+        selectedCameraId.value = preferredCamera.id;
+      } else {
+        message.error("未找到摄像头设备。");
+      }
+    } catch (err) {
+      message.error("获取摄像头列表失败，请检查权限。");
     }
+  }
+};
+
+const startScanner = (deviceId: string) => {
+  if (!html5QrCode) return;
+  
+  const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+  const onScanSuccess = (decodedText: string) => {
+    formState.shortId = decodedText;
+    stopScanner();
   };
 
-  html5QrCode.start(
-    deviceId,
-    config,
-    (decodedText, _decodedResult) => {
-      formState.shortId = decodedText;
-      stopScanner();
-    },
-    (_errorMessage) => {}
-  ).catch((err) => {
-    console.error("Scanner start error:", err);
-    message.error("无法启动扫描仪。");
-    isScannerActive.value = false;
-  });
+  html5QrCode.start(deviceId, config, onScanSuccess, undefined)
+    .catch(_err => { 
+      message.error("无法启动摄像头。");
+      isScannerActive.value = false;
+    });
 };
 
 const stopScanner = async () => {
-  try {
-    if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING) {
+  if (html5QrCode && isScannerActive.value) {
+    try {
       await html5QrCode.stop();
-    }
-  } catch (err) {
-    console.error("Error stopping scanner:", err);
-  } finally {
-    isScannerActive.value = false;
-  }
-};
-
-const initAndStartScanner = async () => {
-  isScannerActive.value = true;
-  try {
-    const availableCameras = await Html5Qrcode.getCameras();
-    if (availableCameras && availableCameras.length) {
-      cameras.value = availableCameras;
-      let preferredCamera = availableCameras.find(c => c.label.toLowerCase().includes('back')) || 
-                            availableCameras.find(c => c.label.toLowerCase().includes('rear')) ||
-                            availableCameras.find(c => c.label.toLowerCase().includes('environment')) ||
-                            availableCameras[0];
-      selectedCameraId.value = preferredCamera.id;
-      startScanner(preferredCamera.id);
-    } else {
-      message.error("未找到摄像头设备。");
+    } catch (err) {
+      console.error("Error stopping scanner:", err);
+    } finally {
       isScannerActive.value = false;
     }
-  } catch (err) {
-    message.error("获取摄像头列表失败，请检查权限。");
-    isScannerActive.value = false;
   }
-};
-
-const handleCameraChange = async (newCameraId: string) => {
-  await stopScanner();
-  isScannerActive.value = true;
-  startScanner(newCameraId);
 };
 
 const toggleScanner = async () => {
   if (isScannerActive.value) {
     await stopScanner();
   } else {
-    await initAndStartScanner();
+    isScannerActive.value = true;
+    if (selectedCameraId.value) {
+      startScanner(selectedCameraId.value);
+    } else {
+      message.error("没有可用的摄像头。");
+      isScannerActive.value = false;
+    }
   }
+};
+
+const handleCameraChange = async (newCameraId: string) => {
+  await stopScanner();
+  selectedCameraId.value = newCameraId;
+  isScannerActive.value = true;
+  startScanner(newCameraId);
 };
 </script>
 
@@ -395,5 +388,6 @@ const toggleScanner = async () => {
   border: 1px solid #d9d9d9;
   border-radius: 8px;
   overflow: hidden;
+  background: #eee;
 }
 </style>
