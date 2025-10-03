@@ -29,7 +29,7 @@
         </div>
         <div class="controls" v-if="!selectedItem">
           <a-button @click="toggleScan" :danger="isScanning" block size="large">
-            {{ isScanning ? '停止扫描' : '开始扫描' }}
+            {{ isScanning ? '停止扫码' : '开始扫码' }}
           </a-button>
         </div>
       </div>
@@ -78,6 +78,7 @@
             <a-button v-if="selectedItem.status === 'InStock'" @click="handleAction('outbound')" block>借出</a-button>
             <a-button v-if="selectedItem.status === 'LoanedOut' || selectedItem.status === 'SuspectedMissing'" @click="handleAction('return')" block>归还</a-button>
             <a-button @click="handleAction('check')" block>盘点</a-button>
+            <a-button v-if="selectedItem.status !== 'Disposed'" @click="showTransferModal" block>转移库房</a-button>
             <a-button v-if="selectedItem.status !== 'Disposed'" @click="handleAction('dispose')" danger block>处置</a-button>
             <a-divider />
             <a-button @click="reset" block>查找下一个</a-button>
@@ -85,16 +86,60 @@
         </a-card>
       </div>
     </div>
+
+    <!-- Transfer Warehouse Modal -->
+    <a-modal
+      v-model:open="transferModalVisible"
+      title="转移库房"
+      ok-text="确认转移"
+      cancel-text="取消"
+      :confirm-loading="itemStore.loading"
+      @ok="handleTransfer"
+    >
+      <a-form layout="vertical">
+        <a-form-item label="当前库房">
+          <a-input :value="selectedItem?.warehouse?.name" disabled />
+        </a-form-item>
+        
+        <a-form-item label="目标库房" required>
+          <a-select 
+            v-model:value="transferForm.targetWarehouseId" 
+            placeholder="请选择目标库房"
+            style="width: 100%"
+          >
+            <a-select-option 
+              v-for="wh in availableTargetWarehouses" 
+              :key="wh.id" 
+              :value="wh.id"
+            >
+              {{ wh.name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        
+        <a-form-item label="备注（可选）">
+          <a-textarea 
+            v-model:value="transferForm.remarks" 
+            placeholder="输入转移原因或备注"
+            :rows="3"
+            :maxlength="500"
+            show-count
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, h, nextTick } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, watch, computed, h, nextTick } from 'vue';
 import { Html5Qrcode, type CameraDevice } from 'html5-qrcode';
 import { useItemStore, type Item, type ItemStatus } from '../stores/itemStore';
+import { useWarehouseStore } from '../stores/warehouseStore';
 import { message, Modal, Input } from 'ant-design-vue';
 
 const itemStore = useItemStore();
+const warehouseStore = useWarehouseStore();
 let html5Qrcode: Html5Qrcode | null = null;
 
 const inputMode = ref<'scan' | 'manual'>('scan');
@@ -109,6 +154,18 @@ const continuousCheck = ref(false);
 // Camera state
 const cameras = ref<CameraDevice[]>([]);
 const selectedCameraId = ref<string | null>(null);
+
+// Transfer modal state
+const transferModalVisible = ref(false);
+const transferForm = reactive({
+  targetWarehouseId: undefined as number | undefined,
+  remarks: ''
+});
+
+const availableTargetWarehouses = computed(() => {
+  if (!selectedItem.value) return warehouseStore.warehouses;
+  return warehouseStore.warehouses.filter(w => w.id !== selectedItem.value?.warehouseId);
+});
 
 const initScanner = async () => {
   if (!readerRef.value) return;
@@ -208,11 +265,11 @@ const handleAction = async (action: 'outbound' | 'return' | 'check' | 'dispose')
         if (inputMode.value === 'scan' && selectedCameraId.value) {
           startScan(selectedCameraId.value);
         } else if (inputMode.value === 'manual') {
-          await nextTick(); // Wait for the DOM to update
+          await nextTick();
           manualInputRef.value?.focus();
         }
       } else {
-        await fetchItemByShortId(selectedItem.value.shortId); // Refresh data
+        await fetchItemByShortId(selectedItem.value.shortId);
       }
     } catch (error) {
       message.error('操作失败');
@@ -244,6 +301,48 @@ const handleAction = async (action: 'outbound' | 'return' | 'check' | 'dispose')
   }
 };
 
+const showTransferModal = () => {
+  if (!selectedItem.value) return;
+  transferForm.targetWarehouseId = undefined;
+  transferForm.remarks = '';
+  transferModalVisible.value = true;
+};
+
+const handleTransfer = async () => {
+  if (!transferForm.targetWarehouseId) {
+    message.error('请选择目标库房');
+    return;
+  }
+
+  if (!selectedItem.value) return;
+
+  if (transferForm.targetWarehouseId === selectedItem.value.warehouseId) {
+    message.error('目标库房不能与当前库房相同');
+    return;
+  }
+
+  try {
+    await itemStore.transferWarehouse(
+      selectedItem.value.id,
+      transferForm.targetWarehouseId,
+      transferForm.remarks || undefined
+    );
+
+    const targetWarehouse = warehouseStore.warehouses.find(
+      w => w.id === transferForm.targetWarehouseId
+    );
+    
+    message.success(`成功转移到 ${targetWarehouse?.name || '目标库房'}`);
+    
+    transferModalVisible.value = false;
+    
+    // Refresh item data
+    await fetchItemByShortId(selectedItem.value.shortId);
+  } catch (error) {
+    message.error('转移失败，请重试');
+  }
+};
+
 const reset = () => {
   selectedItem.value = null;
   scanError.value = null;
@@ -265,6 +364,7 @@ watch(inputMode, async (newMode) => {
 });
 
 onMounted(async () => {
+  await warehouseStore.fetchWarehouses();
   await initScanner();
   if (inputMode.value === 'scan' && selectedCameraId.value) {
     startScan(selectedCameraId.value);

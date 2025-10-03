@@ -116,7 +116,58 @@ export const useItemStore = defineStore('item', {
         this.loading = false;
       }
     },
+    
+    async transferWarehouse(itemId: string, newWarehouseId: number, remarks?: string): Promise<Item> {
+      this.loading = true;
+      this.error = null;
+      try {
+        const response = await apiClient.put<Item>(`/items/${itemId}/transfer`, {
+          newWarehouseId,
+          remarks
+        });
+        
+        const index = this.items.findIndex(item => item.id === itemId);
+        if (index !== -1) {
+          this.items[index] = response.data;
+        }
+        
+        return response.data;
+      } catch (err: any) {
+        this.error = `转移库房失败: ` + (err.response?.data?.message || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
 
+    async transferWarehouseBatch(itemIds: string[], newWarehouseId: number, remarks?: string) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const promises = itemIds.map(id => 
+          apiClient.put<Item>(`/items/${id}/transfer`, {
+            newWarehouseId,
+            remarks
+          })
+        );
+        
+        const responses = await Promise.all(promises);
+        
+        responses.forEach(response => {
+          const index = this.items.findIndex(item => item.id === response.data.id);
+          if (index !== -1) {
+            this.items[index] = response.data;
+          }
+        });
+        
+        return responses.map(r => r.data);
+      } catch (err: any) {
+        this.error = `批量转移库房失败: ` + (err.response?.data?.message || err.message);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
     async updateItemStatus(itemId: string, action: 'outbound' | 'check' | 'return' | 'dispose', destination?: string) {
         this.loading = true;
         this.error = null;
