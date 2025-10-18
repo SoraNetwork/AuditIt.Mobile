@@ -7,8 +7,11 @@
         <a-radio-button value="manual" style="width: 50%; text-align: center;">手动输入</a-radio-button>
       </a-radio-group>
 
-      <a-form-item label="连续盘点模式" v-if="selectedItem?.status !== 'Disposed'">
+      <a-form-item label="连续盘点模式" v-if="inputMode === 'scan' && !selectedItem">
         <a-switch v-model:checked="continuousCheck" />
+        <span style="margin-left: 8px; color: #666; font-size: 12px;">
+          开启后将自动盘点扫描到的物品
+        </span>
       </a-form-item>
 
       <!-- Scan Mode -->
@@ -151,6 +154,11 @@ const readerRef = ref<HTMLElement | null>(null);
 const manualInputRef = ref<any>(null);
 const continuousCheck = ref(false);
 
+// 防抖：记录最近扫描的物品和时间
+const lastScannedId = ref<string | null>(null);
+const lastScanTime = ref<number>(0);
+const SCAN_DEBOUNCE_MS = 1500; // 1.5秒内不重复扫描同一物品
+
 // Camera state
 const cameras = ref<CameraDevice[]>([]);
 const selectedCameraId = ref<string | null>(null);
@@ -210,8 +218,25 @@ const startScan = (deviceId: string) => {
     },
   };
   const onScanSuccess = async (decodedText: string) => {
-    await stopScan();
-    await fetchItemByShortId(decodedText);
+    // 连续盘点模式：直接执行盘点操作，不停止扫描
+    if (continuousCheck.value) {
+      // 防抖：检查是否在短时间内重复扫描同一物品
+      const now = Date.now();
+      if (lastScannedId.value === decodedText && (now - lastScanTime.value) < SCAN_DEBOUNCE_MS) {
+        // 忽略重复扫描
+        return;
+      }
+      
+      // 更新最近扫描记录
+      lastScannedId.value = decodedText;
+      lastScanTime.value = now;
+      
+      await performContinuousCheck(decodedText);
+    } else {
+      // 普通模式：停止扫描并显示详情
+      await stopScan();
+      await fetchItemByShortId(decodedText);
+    }
   };
 
   html5Qrcode.start(deviceId, config, onScanSuccess, undefined)
@@ -228,6 +253,40 @@ const stopScan = async () => {
     } finally {
       isScanning.value = false;
     }
+  }
+};
+
+const performContinuousCheck = async (shortId: string) => {
+  try {
+    // 获取物品信息
+    await itemStore.fetchItems({ shortId });
+    
+    if (itemStore.items.length === 0) {
+      message.error(`未找到ID为 "${shortId}" 的物品`);
+      return;
+    }
+
+    const item = itemStore.items[0];
+    
+    // 检查物品状态
+    if (item.status === 'Disposed') {
+      message.warning(`物品 ${shortId} 已处置，无法盘点`);
+      return;
+    }
+
+    // 执行盘点操作
+    await itemStore.updateItemStatus(item.id, 'check');
+    
+    // 显示成功提示（带物品名称）
+    message.success({
+      content: `✓ ${item.itemDefinition?.name || '物品'} (${shortId}) 盘点成功`,
+      duration: 2,
+    });
+    
+    // 清空items数组，准备下一次扫描
+    itemStore.items = [];
+  } catch (error) {
+    message.error(`盘点失败: ${shortId}`);
   }
 };
 
@@ -360,9 +419,16 @@ const reset = () => {
   scanError.value = null;
   manualId.value = '';
   itemStore.items = [];
+  // 清除防抖记录
+  lastScannedId.value = null;
+  lastScanTime.value = 0;
 };
 
 watch(inputMode, async (newMode) => {
+  // 清除防抖记录
+  lastScannedId.value = null;
+  lastScanTime.value = 0;
+  
   if (newMode === 'scan') {
     await initScanner();
     if (selectedCameraId.value) {
@@ -372,6 +438,22 @@ watch(inputMode, async (newMode) => {
     await stopScan();
     await nextTick();
     manualInputRef.value?.focus();
+  }
+});
+
+watch(continuousCheck, (newValue) => {
+  // 清除防抖记录
+  lastScannedId.value = null;
+  lastScanTime.value = 0;
+  
+  if (newValue) {
+    // 开启连续盘点模式时，如果有选中的物品，清除它以显示扫描界面
+    if (selectedItem.value) {
+      reset();
+      if (inputMode.value === 'scan' && selectedCameraId.value && !isScanning.value) {
+        startScan(selectedCameraId.value);
+      }
+    }
   }
 });
 
