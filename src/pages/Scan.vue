@@ -196,7 +196,19 @@ const startScan = (deviceId: string) => {
   if (!html5Qrcode) return;
   
   reset();
-  const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+  const config = { 
+    fps: 30, 
+    qrbox: { width: 200, height: 200 },
+    frameRate: { ideal: 15, max: 30 },
+    autofocus: true,
+    colorDark: '#0000ff',
+    colorLight: '#ffffff',
+    visualFeedback: true,
+    halfSample: true,
+    experimentalFeatures: {
+      useBarCodeDetectorIfSupported: true
+    },
+  };
   const onScanSuccess = async (decodedText: string) => {
     await stopScan();
     await fetchItemByShortId(decodedText);
