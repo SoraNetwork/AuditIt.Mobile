@@ -146,7 +146,7 @@ const createQuickRemark = async () => {
   }
   quickRemarksLoading.value = true;
   try {
-    const res = await apiClient.post('/QuickRemarks', { text });
+    const res = await apiClient.post('/QuickRemarks', { content:text });
     quickRemarks.value.unshift(res.data);
     newQuickRemarkText.value = '';
     message.success('添加成功');
