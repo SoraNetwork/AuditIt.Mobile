@@ -33,11 +33,12 @@
                 <a-textarea v-model:value="manualFormState.remarks" style="width: calc(100% - 180px)" />
                 <a-select
                   v-model:value="selectedQuickRemarkId"
-                  :options="quickRemarks.map(r => ({ value: r.id, label: r.text }))"
+                  :options="quickRemarks.map(r => ({ value: r.id, label: r.content.length > 16 ? r.content.slice(0, 16) + '…' : r.content }))"
                   placeholder="快捷备注"
                   allowClear
                   @change="applyQuickRemark"
                   style="width: 120px"
+                  :dropdownStyle="{ maxWidth: '320px' }"
                 />
                 <a-button @click="isManageQuickRemarksVisible = true">管理</a-button>
               </a-space-compact>
@@ -97,8 +98,8 @@
           <a-divider />
           <div v-if="!quickRemarks.length" style="color:#888">暂无快捷备注</div>
           <div v-for="r in quickRemarks" :key="r.id" style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom: 1px solid #f0f0f0">
-            <div>{{ r.text }}</div>
-            <a-button type="text" danger @click="deleteQuickRemark(r.id)">删除</a-button>
+            <div style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" :title="r.content">{{ r.content }}</div>
+            <a-button type="text" danger size="small" @click="deleteQuickRemark(r.id)">删除</a-button>
           </div>
         </div>
       </a-drawer>
@@ -113,7 +114,7 @@ import { useWarehouseStore } from '../stores/warehouseStore';
 import { message, type FormInstance } from 'ant-design-vue';
 import apiClient from '../services/api';
 import ItemDefinitionForm from './ItemDefinitionForm.vue';
-interface QuickRemarkDto { id: number; text: string }
+interface QuickRemarkDto { id: number; content: string }
 const quickRemarks = ref<QuickRemarkDto[]>([]);
 const quickRemarksLoading = ref(false);
 const isManageQuickRemarksVisible = ref(false);
@@ -135,18 +136,24 @@ const fetchQuickRemarks = async () => {
 const applyQuickRemark = (id: number | null) => {
   if (!id) return;
   const r = quickRemarks.value.find(x => x.id === id);
-  if (r) manualFormState.remarks = r.text;
+  if (r) {
+    manualFormState.remarks = r.content;
+    setTimeout(() => {
+      const textarea = document.querySelector('textarea');
+      textarea && textarea.focus();
+    }, 100);
+  }
 };
 
 const createQuickRemark = async () => {
-  const text = newQuickRemarkText.value?.trim();
-  if (!text) {
+  const content = newQuickRemarkText.value?.trim();
+  if (!content) {
     message.warning('请输入备注内容');
     return;
   }
   quickRemarksLoading.value = true;
   try {
-    const res = await apiClient.post('/QuickRemarks', { content:text });
+    const res = await apiClient.post('/QuickRemarks', { content });
     quickRemarks.value.unshift(res.data);
     newQuickRemarkText.value = '';
     message.success('添加成功');
